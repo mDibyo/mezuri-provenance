@@ -49,7 +49,7 @@ def operator_context():
         save_operator_context(ctx)
 
 
-def init() -> int:
+def init(_) -> int:
     with operator_context() as ctx:
         if SPEC_PATH_KEY in ctx:
             # TODO(dibyo): Support initializing/re-initializing from passed in
@@ -62,24 +62,59 @@ def init() -> int:
         spec['description'] = input('Description: ')
         version = input('Version ({}): '.format(DEFAULT_VERSION))
         spec['version'] = version if version else DEFAULT_VERSION
+        print('Please generate input, parameter and output specifications')
 
         Git.init()
         ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPECIFICATION_FILE)
-        return 0
+
+    Git.add(SPECIFICATION_FILE)
+    return 0
 
 
-def commit():
-    pass
+def commit(args):
+    with operator_context() as ctx:
+        if SPEC_PATH_KEY not in ctx:
+            print('Operator not initialized')
+            return 1
+
+        # TODO(dibyo): Validate versions
+        if args.version is not None:
+            ctx[SPEC_KEY]['version'] = args.version
+
+    Git.commit(args.message)
+    return 0
 
 
 def publish():
     pass
 
 
-if __name__ == '__main__':
-    parser = ArgumentParser(prog='operator')
-    parser.add_argument('command', help='The command to be executed. ')
-    args = parser.parse_args()
+def main():
+    parser = ArgumentParser(prog='operator',
+                            description='Work with operators.')
+    command_parsers = parser.add_subparsers(title='commands')
 
-    if args.command == 'init':
-        exit(init())
+    # Init
+    init_parser = command_parsers.add_parser('init',
+                                             help='Initialize an operator.',
+                                             description='Initialize an operator.')
+    init_parser.set_defaults(command=init)
+
+    # Commit
+    commit_parser = command_parsers.add_parser('commit',
+                                               help='Commit a new version of the operator.',
+                                               description='Commit a new version of the operator')
+    commit_parser.set_defaults(command=commit)
+    commit_parser.add_argument('message',
+                               help='The commit message')
+    commit_parser.add_argument('-v', '--version',
+                               help='The new version of the operator. This must be greater '
+                                    'than the previous version.')
+
+    args = parser.parse_args()
+    return args.command(args)
+
+
+if __name__ == '__main__':
+    main()
+

@@ -26,4 +26,17 @@ class Git:
     """Wrapper for git."""
     @classmethod
     def init(cls):
-        return subprocess.check_call(['git', 'init'])
+        return subprocess.check_output(['git', 'init'])
+
+    @classmethod
+    def add(cls, filename):
+        return subprocess.check_output(['git', 'add', filename])
+
+    @classmethod
+    def commit(cls, message):
+        try:
+            return subprocess.check_output(['git', 'commit',
+                                            '-a',
+                                            '-m', '{}'.format(message)])
+        except subprocess.CalledProcessError as e:
+            print(e.returncode)
