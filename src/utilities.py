@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 
 SPECIFICATION_FILE = 'specification.json'
 
@@ -18,4 +19,11 @@ def get_specification():
         if directory == '/':
             return None, ''
 
-        directory = os.path.join(directory, os.path.pardir)
+        directory = os.path.abspath(os.path.join(directory, os.path.pardir))
+
+
+class Git:
+    """Wrapper for git."""
+    @classmethod
+    def init(cls):
+        return subprocess.check_call(['git', 'init'])
