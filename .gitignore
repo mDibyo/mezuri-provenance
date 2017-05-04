@@ -1,2 +1,6 @@
 # IntelliJ IDEA files
 .idea
+
+# Python bitfiles
+__pycache__/
+*.py[cod]
