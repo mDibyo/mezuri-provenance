@@ -12,6 +12,8 @@ SPEC_KEY = 'spec'
 SPEC_PATH_KEY = 'specPath'
 SPEC_FILE = 'specification.json'
 
+DEFAULT_VERSION = '0.0.0'
+
 
 def get_project_root_by_specification():
     directory = os.getcwd()

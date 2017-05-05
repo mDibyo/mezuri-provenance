@@ -5,11 +5,10 @@ import json
 import os
 
 from utilities import (
-    SPEC_KEY, SPEC_PATH_KEY, SPEC_FILE,
+    SPEC_KEY, SPEC_PATH_KEY, SPEC_FILE, DEFAULT_VERSION,
     Git, Version, component_context
 )
 
-DEFAULT_VERSION = '0.0.0'
 operator_context_spec_defaults = {
     'name': None,
     'description': None,
@@ -34,7 +33,6 @@ def init(_) -> int:
 
         Git.init()
         ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILE)
-
     Git.add(SPEC_FILE)
     return 0
 
