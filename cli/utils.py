@@ -32,6 +32,9 @@ SPEC_FILENAME = 'specification.json'
 DEFAULT_VERSION = '0.0.0'
 DEFAULT_REGISTRY = 'http://registry.mezuri.org'
 
+TAG_NAME_FORMAT = 'mezuri:{component_type}:{version}'
+TAG_MESSAGE_FORMAT = 'Create Component version {version}'
+
 component_spec_defaults = {
     'name': None,
     'description': None,
@@ -132,7 +135,7 @@ def component_init(spec_defaults=None):
     return 0
 
 
-def component_commit(message: str, version: str=None, spec_defaults=None):
+def component_commit(component_type: str, message: str, version: str=None, spec_defaults=None):
     with component_context(spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
             print('Component not initialized')
@@ -150,6 +153,8 @@ def component_commit(message: str, version: str=None, spec_defaults=None):
                 return 1
 
     Git.commit(message)
+    Git.tag.create(TAG_NAME_FORMAT.format(type=component_type, version=current_version),
+                   TAG_MESSAGE_FORMAT.format(version=current_version))
     return 0
 
 
@@ -196,10 +201,13 @@ class Git:
         return subprocess.check_output(['git', 'add', filename])
 
     @classmethod
-    def commit(cls, message: str):
-        return subprocess.check_output(['git', 'commit',
-                                        '-a',
-                                        '-m', '{}'.format(message)])
+    def commit(cls, message: str, allow_empty: bool=False):
+        cmd = ['git', 'commit',
+               '-a',
+               '-m', '{}'.format(message)]
+        if allow_empty:
+            cmd.append('--allow-empty')
+        return subprocess.check_output(cmd)
 
     @classmethod
     def show(cls, revision: str, filename: str):
@@ -216,6 +224,20 @@ class Git:
     def push(cls, remote: str):
         return subprocess.check_output(['git', 'push',
                                         remote, 'master'])
+
+    class GitTag:
+        @classmethod
+        def list(cls):
+            return subprocess.check_output(['git', 'tag']).decode().split()
+
+        @classmethod
+        def create(cls, name: str, message: str):
+            return subprocess.check_output(['git', 'tag',
+                                            '-a',
+                                            '-m', message,
+                                            name])
+
+    tag = GitTag
 
     class GitRemote:
         @classmethod

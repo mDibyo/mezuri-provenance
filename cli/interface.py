@@ -12,7 +12,7 @@ def init(_):
 
 
 def commit(args):
-    return component_commit(args.message, args.version)
+    return component_commit('interface', args.message, args.version)
 
 
 def publish():

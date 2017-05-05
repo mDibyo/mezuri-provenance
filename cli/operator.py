@@ -12,7 +12,7 @@ def init(_) -> int:
 
 
 def commit(args) -> int:
-    return component_commit(args.message, args.version)
+    return component_commit('operator', args.message, args.version)
 
 
 def publish():
