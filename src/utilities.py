@@ -60,10 +60,7 @@ def calculate_component_context(spec_defaults=None):
 
 def save_component_context(context):
     if SPEC_PATH_KEY in context:
-        path = context[SPEC_PATH_KEY]
-        del context[SPEC_PATH_KEY]
-
-        with open(path, 'w') as f:
+        with open(context[SPEC_PATH_KEY], 'w') as f:
             json.dump(context[SPEC_KEY], f, indent=4)
 
 

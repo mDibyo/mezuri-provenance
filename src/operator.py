@@ -2,12 +2,13 @@
 
 from argparse import ArgumentParser
 import json
-import os
 
-from utilities import (
+from .utilities import (
     SPEC_KEY, SPEC_PATH_KEY, SPEC_FILE, DEFAULT_VERSION,
     Git, Version, component_context, component_init
 )
+
+OPERATOR_COMMAND_HELP = 'Work with operators.'
 
 operator_context_spec_defaults = {
     'name': None,
@@ -45,9 +46,7 @@ def publish():
     pass
 
 
-def main():
-    parser = ArgumentParser(prog='operator',
-                            description='Work with operators.')
+def add_operator_commands(parser):
     command_parsers = parser.add_subparsers(title='commands')
 
     # Init
@@ -66,6 +65,12 @@ def main():
     commit_parser.add_argument('-v', '--version',
                                help='The new version of the operator. This must be greater '
                                     'than the previous version.')
+
+
+def main():
+    parser = ArgumentParser(prog='operator',
+                            description=OPERATOR_COMMAND_HELP)
+    add_operator_commands(parser)
 
     args = parser.parse_args()
     return args.command(args)

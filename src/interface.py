@@ -3,16 +3,16 @@
 
 from argparse import ArgumentParser
 
-from utilities import component_init
+from .utilities import component_init
+
+INTERFACE_COMMAND_HELP = 'Work with interfaces.'
 
 
 def init(_):
     return component_init()
 
 
-def main():
-    parser = ArgumentParser(prog='interface',
-                            description='Work with interfaces.')
+def add_interface_commands(parser):
     command_parsers = parser.add_subparsers(title='commands')
 
     # Init
@@ -20,6 +20,12 @@ def main():
                                              help='Initialize an operator.',
                                              description='Initialize an operator.')
     init_parser.set_defaults(command=init)
+
+
+def main():
+    parser = ArgumentParser(prog='interface',
+                            description=INTERFACE_COMMAND_HELP)
+    add_interface_commands(parser)
 
     args = parser.parse_args()
     return args.command(args)
