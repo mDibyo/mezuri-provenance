@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import json
 import os
 
-from utilities import get_specification, Git, SPECIFICATION_FILE
+from utilities import get_specification, Git, Version, SPECIFICATION_FILE
 
 SPEC_KEY = 'spec'
 SPEC_PATH_KEY = 'specPath'
@@ -77,9 +77,16 @@ def commit(args):
             print('Operator not initialized')
             return 1
 
-        # TODO(dibyo): Validate versions
         if args.version is not None:
             ctx[SPEC_KEY]['version'] = args.version
+        current_version = Version(ctx[SPEC_KEY]['version'])
+        last_spec_raw = Git.show('HEAD', SPECIFICATION_FILE)
+        if last_spec_raw is not None:
+            last_spec = json.loads(last_spec_raw)
+            last_version = Version(last_spec['version'])
+            if last_version >= current_version:
+                print('Version {} not greater than {}'.format(current_version, last_version))
+                return 1
 
     Git.commit(args.message)
     return 0
