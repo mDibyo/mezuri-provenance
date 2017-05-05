@@ -76,6 +76,27 @@ def component_context(spec_defaults=None):
         save_component_context(ctx)
 
 
+@contextmanager
+def component_init(spec_defaults=None):
+    with component_context(spec_defaults) as ctx:
+        if SPEC_PATH_KEY in ctx:
+            # TODO(dibyo): Support initializing/re-initializing from passed in
+            # JSON-file
+            print('Interface already initialized')
+            return 1
+
+        spec = ctx[SPEC_KEY]
+        spec['name'] = input('Name: ')
+        spec['description'] = input('Description: ')
+        version = input('Version ({}): '.format(DEFAULT_VERSION))
+        spec['version'] = version if version else DEFAULT_VERSION
+
+        Git.init()
+        ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILE)
+    Git.add(SPEC_FILE)
+    return 0
+
+
 class Git:
     """Wrapper for git."""
     @classmethod
