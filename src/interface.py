@@ -3,7 +3,7 @@
 
 from argparse import ArgumentParser
 
-from .utilities import component_init, component_commit
+from .utils import component_init, component_commit
 
 INTERFACE_COMMAND_HELP = 'Work with interfaces.'
 

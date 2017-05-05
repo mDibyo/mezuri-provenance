@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from .utilities import component_init, component_commit
+from .utils import component_init, component_commit
 
 OPERATOR_COMMAND_HELP = 'Work with operators.'
 
