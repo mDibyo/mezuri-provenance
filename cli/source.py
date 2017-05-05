@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from .utils import component_init, component_commit
+from .utils import SPEC_FILENAME, component_init, component_commit, component_publish
 
 SOURCE_COMMAND_HELP = 'Work with sources.'
 
@@ -13,6 +13,10 @@ def init(_):
 
 def commit(args):
     return component_commit(args.message, args.version)
+
+
+def publish():
+    return component_publish()
 
 
 def add_source_commands(parser):
@@ -32,8 +36,15 @@ def add_source_commands(parser):
     commit_parser.add_argument('message',
                                help='The commit message')
     commit_parser.add_argument('-v', '--version',
-                               help='The new version of the source. This must be greater '
-                                    'than the previous version.')
+                               help='The new version of the operator. This must be greater '
+                                    'than the previous version. If not provided, the version listed'
+                                    'in {} will be used. '.format(SPEC_FILENAME))
+
+    # Publish
+    publish_parser = command_parsers.add_parser('publish',
+                                                help='Publish the operator to an online registry.',
+                                                description='Publish the operator to an online registry.')
+    publish_parser.set_defaults(command=publish)
 
 
 def main():

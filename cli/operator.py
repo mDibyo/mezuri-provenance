@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from .utils import component_init, component_commit
+from .utils import SPEC_FILENAME, component_init, component_commit, component_publish
 
 OPERATOR_COMMAND_HELP = 'Work with operators.'
 
@@ -16,7 +16,7 @@ def commit(args) -> int:
 
 
 def publish():
-    pass
+    return component_publish()
 
 
 def add_operator_commands(parser):
@@ -37,7 +37,14 @@ def add_operator_commands(parser):
                                help='The commit message')
     commit_parser.add_argument('-v', '--version',
                                help='The new version of the operator. This must be greater '
-                                    'than the previous version.')
+                                    'than the previous version. If not provided, the version listed'
+                                    'in {} will be used. '.format(SPEC_FILENAME))
+
+    # Publish
+    publish_parser = command_parsers.add_parser('publish',
+                                                help='Publish the operator to an online registry.',
+                                                description='Publish the operator to an online registry.')
+    publish_parser.set_defaults(command=publish)
 
 
 def main():

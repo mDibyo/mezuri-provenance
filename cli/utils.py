@@ -27,7 +27,7 @@ specification.json format:
 """
 SPEC_KEY = 'spec'
 SPEC_PATH_KEY = 'specPath'
-SPEC_FILE = 'specification.json'
+SPEC_FILENAME = 'specification.json'
 
 DEFAULT_VERSION = '0.0.0'
 DEFAULT_REGISTRY = 'http://registry.mezuri.org'
@@ -56,7 +56,7 @@ def input_registry():
 def get_project_root_by_specification():
     directory = os.getcwd()
     while True:
-        if os.path.exists(os.path.join(directory, SPEC_FILE)):
+        if os.path.exists(os.path.join(directory, SPEC_FILENAME)):
             return directory
 
         if directory == '/':
@@ -70,7 +70,7 @@ def specification_filename():
     if project_root is None:
         return None
 
-    return os.path.join(project_root, SPEC_FILE)
+    return os.path.join(project_root, SPEC_FILENAME)
 
 
 def specification():
@@ -127,8 +127,8 @@ def component_init(spec_defaults=None):
         spec['version'] = version if version else DEFAULT_VERSION
 
         Git.init()
-        ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILE)
-    Git.add(SPEC_FILE)
+        ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILENAME)
+    Git.add(SPEC_FILENAME)
     return 0
 
 
@@ -141,7 +141,7 @@ def component_commit(message: str, version: str=None, spec_defaults=None):
         if version is not None:
             ctx[SPEC_KEY]['version'] = version
         current_version = Version(ctx[SPEC_KEY]['version'])
-        last_spec_raw = Git.show('HEAD', SPEC_FILE)
+        last_spec_raw = Git.show('HEAD', SPEC_FILENAME)
         if last_spec_raw is not None:
             last_spec = json.loads(last_spec_raw)
             last_version = Version(last_spec['version'])
