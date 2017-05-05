@@ -10,19 +10,34 @@ import subprocess
 SPECIFICATION_FILE = 'specification.json'
 
 
-def get_specification():
-    """Returns specifications and path to specifications."""
+def get_project_root_by_specification():
     directory = os.getcwd()
     while True:
-        path = os.path.join(directory, SPECIFICATION_FILE)
-        if os.path.exists(path):
-            with open(path) as f:
-                return json.load(f, object_pairs_hook=OrderedDict), path
+        if os.path.exists(os.path.join(directory, SPECIFICATION_FILE)):
+            return directory
 
         if directory == '/':
-            return None, ''
+            return None
 
         directory = os.path.abspath(os.path.join(directory, os.path.pardir))
+
+
+def specification_filename():
+    project_root = get_project_root_by_specification()
+    if project_root is None:
+        return None
+
+    return os.path.join(project_root, SPECIFICATION_FILE)
+
+
+def get_specification():
+    """Returns specifications and path to specifications."""
+    filename = specification_filename()
+    if filename is None:
+        return None, None
+
+    with open(filename) as f:
+        return json.load(f, object_hook=OrderedDict), filename
 
 
 class Git:
