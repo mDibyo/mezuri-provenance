@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from contextlib import contextmanager
 import json
 import os
 
-from utilities import get_specification, Git, Version, SPECIFICATION_FILE
-
-SPEC_KEY = 'spec'
-SPEC_PATH_KEY = 'specPath'
+from utilities import (
+    SPEC_KEY, SPEC_PATH_KEY, SPEC_FILE,
+    Git, Version, component_context
+)
 
 DEFAULT_VERSION = '0.0.0'
 operator_context_spec_defaults = {
@@ -18,39 +17,8 @@ operator_context_spec_defaults = {
 }
 
 
-def calculate_operator_context():
-    context = {
-        SPEC_KEY: operator_context_spec_defaults
-    }
-
-    spec, path = get_specification()
-    if spec is not None:
-        context[SPEC_KEY].update(spec)
-        context[SPEC_PATH_KEY] = path
-
-    return context
-
-
-def save_operator_context(context):
-    if SPEC_PATH_KEY in context:
-        path = context[SPEC_PATH_KEY]
-        del context[SPEC_PATH_KEY]
-
-        with open(path, 'w') as f:
-            json.dump(context[SPEC_KEY], f, indent=4)
-
-
-@contextmanager
-def operator_context():
-    ctx = calculate_operator_context()
-    try:
-        yield ctx
-    finally:
-        save_operator_context(ctx)
-
-
 def init(_) -> int:
-    with operator_context() as ctx:
+    with component_context(operator_context_spec_defaults) as ctx:
         if SPEC_PATH_KEY in ctx:
             # TODO(dibyo): Support initializing/re-initializing from passed in
             # JSON-file
@@ -65,14 +33,14 @@ def init(_) -> int:
         print('Please generate input, parameter and output specifications')
 
         Git.init()
-        ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPECIFICATION_FILE)
+        ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILE)
 
-    Git.add(SPECIFICATION_FILE)
+    Git.add(SPEC_FILE)
     return 0
 
 
 def commit(args):
-    with operator_context() as ctx:
+    with component_context(operator_context_spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
             print('Operator not initialized')
             return 1
@@ -80,7 +48,7 @@ def commit(args):
         if args.version is not None:
             ctx[SPEC_KEY]['version'] = args.version
         current_version = Version(ctx[SPEC_KEY]['version'])
-        last_spec_raw = Git.show('HEAD', SPECIFICATION_FILE)
+        last_spec_raw = Git.show('HEAD', SPEC_FILE)
         if last_spec_raw is not None:
             last_spec = json.loads(last_spec_raw)
             last_version = Version(last_spec['version'])
@@ -124,4 +92,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 
 from collections import OrderedDict
+from contextlib import contextmanager
 from functools import total_ordering
 import json
 import os
 import re
 import subprocess
 
-SPECIFICATION_FILE = 'specification.json'
+SPEC_KEY = 'spec'
+SPEC_PATH_KEY = 'specPath'
+SPEC_FILE = 'specification.json'
 
 
 def get_project_root_by_specification():
     directory = os.getcwd()
     while True:
-        if os.path.exists(os.path.join(directory, SPECIFICATION_FILE)):
+        if os.path.exists(os.path.join(directory, SPEC_FILE)):
             return directory
 
         if directory == '/':
@@ -27,10 +30,10 @@ def specification_filename():
     if project_root is None:
         return None
 
-    return os.path.join(project_root, SPECIFICATION_FILE)
+    return os.path.join(project_root, SPEC_FILE)
 
 
-def get_specification():
+def specification():
     """Returns specifications and path to specifications."""
     filename = specification_filename()
     if filename is None:
@@ -40,6 +43,37 @@ def get_specification():
         return json.load(f, object_hook=OrderedDict), filename
 
 
+def calculate_component_context(spec_defaults=None):
+    context = {
+        SPEC_KEY: spec_defaults if spec_defaults is not None else {}
+    }
+
+    spec, path = specification()
+    if spec is not None:
+        context[SPEC_KEY].update(spec)
+        context[SPEC_PATH_KEY] = path
+
+    return context
+
+
+def save_component_context(context):
+    if SPEC_PATH_KEY in context:
+        path = context[SPEC_PATH_KEY]
+        del context[SPEC_PATH_KEY]
+
+        with open(path, 'w') as f:
+            json.dump(context[SPEC_KEY], f, indent=4)
+
+
+@contextmanager
+def component_context(spec_defaults=None):
+    ctx = calculate_component_context(spec_defaults)
+    try:
+        yield ctx
+    finally:
+        save_component_context(ctx)
+
+
 class Git:
     """Wrapper for git."""
     @classmethod
@@ -47,11 +81,11 @@ class Git:
         return subprocess.check_output(['git', 'init'])
 
     @classmethod
-    def add(cls, filename):
+    def add(cls, filename: str):
         return subprocess.check_output(['git', 'add', filename])
 
     @classmethod
-    def commit(cls, message):
+    def commit(cls, message: str):
         return subprocess.check_output(['git', 'commit',
                                         '-a',
                                         '-m', '{}'.format(message)])
