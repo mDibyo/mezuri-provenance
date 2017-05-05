@@ -8,17 +8,49 @@ import os
 import re
 import subprocess
 
+"""
+Utilities for CLI.
+
+specification.json format:
+{
+    "name": <component name>,
+    "description": <component description>,
+    "version": "0.0.0",
+    "publish": {
+        "remote": {
+            "name": <remote name>,
+            "url": <remote url>
+        }
+        "registry": <registry url>
+    }
+}
+"""
 SPEC_KEY = 'spec'
 SPEC_PATH_KEY = 'specPath'
 SPEC_FILE = 'specification.json'
 
 DEFAULT_VERSION = '0.0.0'
+DEFAULT_REGISTRY = 'http://registry.mezuri.org'
 
 component_spec_defaults = {
     'name': None,
     'description': None,
     'version': DEFAULT_VERSION
 }
+
+
+def input_git_remote():
+    remote_url = input('Git remote: ')
+    remote_name = input('Remote name: ')
+    return {
+        'name': remote_name,
+        'url': remote_url
+    }
+
+
+def input_registry():
+    registry = input('registry [{}]: '.format(DEFAULT_REGISTRY)).strip()
+    return registry if registry else DEFAULT_VERSION
 
 
 def get_project_root_by_specification():
@@ -89,9 +121,9 @@ def component_init(spec_defaults=None):
             return 1
 
         spec = ctx[SPEC_KEY]
-        spec['name'] = input('Name: ')
-        spec['description'] = input('Description: ')
-        version = input('Version ({}): '.format(DEFAULT_VERSION))
+        spec['name'] = input('Name: ').strip()
+        spec['description'] = input('Description: ').strip()
+        version = input('Version ({}): '.format(DEFAULT_VERSION)).strip()
         spec['version'] = version if version else DEFAULT_VERSION
 
         Git.init()
@@ -121,6 +153,38 @@ def component_commit(message: str, version: str=None, spec_defaults=None):
     return 0
 
 
+def component_publish(spec_defaults=None):
+    with component_context(spec_defaults) as ctx:
+        if SPEC_PATH_KEY not in ctx:
+            print('Component in not initialized')
+            return 1
+
+        spec = ctx[SPEC_KEY]
+        if 'publish' not in spec:  # Component has never been published before.
+            remote_names = Git.remote.list()
+            if not remote_names:
+                remote = input_git_remote()
+            else:
+                remote_name = input('Git remote [{}]: '.format(', '.join(remote_names))).strip()
+                if remote_name:
+                    remote = {
+                        'name': remote_name,
+                        'url': Git.remote.url(remote_name)
+                    }
+                else:
+                    remote = input_git_remote()
+
+            registry = input_registry()
+            spec['publish'] = {
+                'remote': remote,
+                'registry': registry
+            }
+
+        publish = spec['publish']
+        Git.push(publish['remote']['name'])
+        Registry(publish['registry']).push(spec['name'])
+
+
 class Git:
     """Wrapper for git."""
     @classmethod
@@ -142,11 +206,36 @@ class Git:
         try:
             return subprocess.check_output(['git', 'show',
                                             '{}:{}'.format(revision, filename)],
-                                           stderr=subprocess.STDOUT).decode('utf-8')
+                                           stderr=subprocess.STDOUT).decode()
         except subprocess.CalledProcessError as e:
             if e.returncode == 128:
                 return None
             raise
+
+    @classmethod
+    def push(cls, remote: str):
+        return subprocess.check_output(['git', 'push',
+                                        remote, 'master'])
+
+    class GitRemote:
+        @classmethod
+        def list(cls):
+            return subprocess.check_output(['git', 'remote']).decode().split()
+
+        @classmethod
+        def url(cls, remote_name: str):
+            return subprocess.check_output(['git', 'remote',
+                                            'get-url', remote_name]).decode()
+
+    remote = GitRemote
+
+
+class Registry:
+    def __init__(self, url: str):
+        self.url = url
+
+    def push(self, component_type, component_name):
+        pass
 
 
 @total_ordering
