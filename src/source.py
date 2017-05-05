@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 
 from .utils import component_init, component_commit
 
-INTERFACE_COMMAND_HELP = 'Work with interfaces.'
+SOURCE_COMMAND_HELP = 'Work with sources.'
 
 
 def init(_):
@@ -15,31 +15,31 @@ def commit(args):
     return component_commit(args.message, args.version)
 
 
-def add_interface_commands(parser):
+def add_source_commands(parser):
     command_parsers = parser.add_subparsers(title='commands')
 
     # Init
     init_parser = command_parsers.add_parser('init',
-                                             help='Initialize an interface.',
-                                             description='Initialize an interface.')
+                                             help='Initialize a source.',
+                                             description='Initialize a source.')
     init_parser.set_defaults(command=init)
 
     # Commit
     commit_parser = command_parsers.add_parser('commit',
-                                               help='Commit a new version of the interface.',
-                                               description='Commit a new version of the interface')
+                                               help='Commit a new version of the source.',
+                                               description='Commit a new version of the source')
     commit_parser.set_defaults(command=commit)
     commit_parser.add_argument('message',
                                help='The commit message')
     commit_parser.add_argument('-v', '--version',
-                               help='The new version of the interface. This must be greater '
+                               help='The new version of the source. This must be greater '
                                     'than the previous version.')
 
 
 def main():
-    parser = ArgumentParser(prog='interface',
-                            description=INTERFACE_COMMAND_HELP)
-    add_interface_commands(parser)
+    parser = ArgumentParser(prog='source',
+                            description=SOURCE_COMMAND_HELP)
+    add_source_commands(parser)
 
     args = parser.parse_args()
     return args.command(args)
