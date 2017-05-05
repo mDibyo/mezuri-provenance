@@ -153,7 +153,7 @@ def component_commit(message: str, version: str=None, spec_defaults=None):
     return 0
 
 
-def component_publish(spec_defaults=None):
+def component_publish(component_type: str, spec_defaults=None):
     with component_context(spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
             print('Component in not initialized')
@@ -182,7 +182,7 @@ def component_publish(spec_defaults=None):
 
         publish = spec['publish']
         Git.push(publish['remote']['name'])
-        Registry(publish['registry']).push(spec['name'])
+        Registry(publish['registry']).push(component_type, spec['name'])
 
 
 class Git:

@@ -16,7 +16,7 @@ def commit(args):
 
 
 def publish():
-    return component_publish()
+    return component_publish('interface')
 
 
 def add_interface_commands(parser):

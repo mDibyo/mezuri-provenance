@@ -16,7 +16,7 @@ def commit(args) -> int:
 
 
 def publish():
-    return component_publish()
+    return component_publish('operator')
 
 
 def add_operator_commands(parser):

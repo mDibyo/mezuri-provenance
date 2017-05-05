@@ -16,7 +16,7 @@ def commit(args):
 
 
 def publish():
-    return component_publish()
+    return component_publish('source')
 
 
 def add_source_commands(parser):
