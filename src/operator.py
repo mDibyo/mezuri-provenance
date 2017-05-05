@@ -1,45 +1,18 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-import json
 
-from .utilities import (
-    SPEC_KEY, SPEC_PATH_KEY, SPEC_FILE, DEFAULT_VERSION,
-    Git, Version, component_context, component_init
-)
+from .utilities import component_init, component_commit
 
 OPERATOR_COMMAND_HELP = 'Work with operators.'
 
-operator_context_spec_defaults = {
-    'name': None,
-    'description': None,
-    'version': DEFAULT_VERSION
-}
-
 
 def init(_) -> int:
-    return component_init(operator_context_spec_defaults)
+    return component_init()
 
 
-def commit(args):
-    with component_context(operator_context_spec_defaults) as ctx:
-        if SPEC_PATH_KEY not in ctx:
-            print('Operator not initialized')
-            return 1
-
-        if args.version is not None:
-            ctx[SPEC_KEY]['version'] = args.version
-        current_version = Version(ctx[SPEC_KEY]['version'])
-        last_spec_raw = Git.show('HEAD', SPEC_FILE)
-        if last_spec_raw is not None:
-            last_spec = json.loads(last_spec_raw)
-            last_version = Version(last_spec['version'])
-            if last_version >= current_version:
-                print('Version {} not greater than {}'.format(current_version, last_version))
-                return 1
-
-    Git.commit(args.message)
-    return 0
+def commit(args) -> int:
+    return component_commit(args.message, args.version)
 
 
 def publish():

@@ -14,6 +14,12 @@ SPEC_FILE = 'specification.json'
 
 DEFAULT_VERSION = '0.0.0'
 
+component_spec_defaults = {
+    'name': None,
+    'description': None,
+    'version': DEFAULT_VERSION
+}
+
 
 def get_project_root_by_specification():
     directory = os.getcwd()
@@ -46,13 +52,14 @@ def specification():
 
 
 def calculate_component_context(spec_defaults=None):
-    context = {
-        SPEC_KEY: spec_defaults if spec_defaults is not None else {}
-    }
+    spec = component_spec_defaults.copy()
+    if spec_defaults is not None:
+        spec.update(spec_defaults)
+    context = {SPEC_KEY: spec}
 
-    spec, path = specification()
-    if spec is not None:
-        context[SPEC_KEY].update(spec)
+    saved_spec, path = specification()
+    if saved_spec is not None:
+        context[SPEC_KEY].update(saved_spec)
         context[SPEC_PATH_KEY] = path
 
     return context
@@ -73,13 +80,12 @@ def component_context(spec_defaults=None):
         save_component_context(ctx)
 
 
-@contextmanager
 def component_init(spec_defaults=None):
     with component_context(spec_defaults) as ctx:
         if SPEC_PATH_KEY in ctx:
             # TODO(dibyo): Support initializing/re-initializing from passed in
             # JSON-file
-            print('Interface already initialized')
+            print('Component already initialized')
             return 1
 
         spec = ctx[SPEC_KEY]
@@ -91,6 +97,27 @@ def component_init(spec_defaults=None):
         Git.init()
         ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILE)
     Git.add(SPEC_FILE)
+    return 0
+
+
+def component_commit(message: str, version: str=None, spec_defaults=None):
+    with component_context(spec_defaults) as ctx:
+        if SPEC_PATH_KEY not in ctx:
+            print('Component not initialized')
+            return 1
+
+        if version is not None:
+            ctx[SPEC_KEY]['version'] = version
+        current_version = Version(ctx[SPEC_KEY]['version'])
+        last_spec_raw = Git.show('HEAD', SPEC_FILE)
+        if last_spec_raw is not None:
+            last_spec = json.loads(last_spec_raw)
+            last_version = Version(last_spec['version'])
+            if last_version >= current_version:
+                print('Version {} not greater than {}'.format(current_version, last_version))
+                return 1
+
+    Git.commit(message)
     return 0
 
 
