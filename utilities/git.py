@@ -20,10 +20,16 @@ class Git:
                '-m', '{}'.format(message)]
         if allow_empty:
             cmd.append('--allow-empty')
-        return subprocess.check_output(cmd)
+        try:
+            subprocess.check_output(cmd)
+        except subprocess.CalledProcessError:
+            return None
+
+        return subprocess.check_output(['git', 'rev-parse', 'HEAD'])
 
     @classmethod
-    def show(cls, revision: str, filename: str):
+    def show(cls, filename: str, revision: str='HEAD'):
+        """Show a file at a given revision. """
         try:
             return subprocess.check_output(['git', 'show',
                                             '{}:{}'.format(revision, filename)],

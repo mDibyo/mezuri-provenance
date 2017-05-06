@@ -6,6 +6,7 @@ from functools import total_ordering
 import json
 import os
 import re
+from typing import Dict
 
 from utilities.git import Git
 
@@ -55,6 +56,41 @@ class Version:
 DEFAULT_VERSION = Version('0.0.0')
 
 
+@total_ordering
+class VersionTag:
+    """VersionTags have the format "mezuri/{component_type}/{component_name}/{version}".  """
+
+    def __init__(self, component_type: str, component_name: str, version: Version):
+        self.component_type = component_type
+        self.component_name = component_name
+        self.version = version
+
+    @classmethod
+    def parse(cls, version_tag_str: str) -> 'VersionTag':
+        _, component_type, component_name, version_str = version_tag_str.split('/')
+        return cls(component_type, component_name, Version(version_str))
+
+    def __repr__(self):
+        return '/'.join(['mezuri', self.component_type, self.component_name, self.version])
+
+    @staticmethod
+    def _is_valid_version(other):
+        return type(other) == VersionTag
+
+    def __eq__(self, other: 'VersionTag'):
+        if (self.component_type != other.component_type or
+                    self.component_name != other.component_name):
+            return False
+
+        return self.version == other.version
+
+    def __gt__(self, other: 'VersionTag'):
+        if (self.component_type != other.component_type or
+                self.component_name != other.component_name):
+            return NotImplemented
+
+        return self.version > other.version
+
 """
 Utilities for CLI.
 
@@ -79,8 +115,6 @@ SPEC_FILENAME = 'specification.json'
 DEFAULT_REGISTRY = 'http://registry.mezuri.org'
 
 TAG_NAME_FORMAT = 'mezuri/{component_type}/{version}'
-TAG_MESSAGE_FORMAT = 'Create Component version {version}'
-
 
 component_spec_defaults = OrderedDict((
     ('name', None),
@@ -89,7 +123,15 @@ component_spec_defaults = OrderedDict((
 ))
 
 
-def input_git_remote():
+def input_name() -> str:
+    name = input('Name (only a-z,-): ').strip()
+    while len(name.split()) > 1:
+        print('{} is not a valid Component name. Try again.'.format(name))
+        name = input('Name (only a-z,-): ').strip()
+    return name
+
+
+def input_git_remote() -> Dict:
     remote_url = input('Git remote: ')
     remote_name = input('Remote name: ')
     return {
@@ -98,7 +140,7 @@ def input_git_remote():
     }
 
 
-def input_registry():
+def input_registry() -> str:
     registry = input('registry [{}]: '.format(DEFAULT_REGISTRY)).strip()
     return registry if registry else DEFAULT_REGISTRY
 
@@ -176,11 +218,11 @@ def component_init(spec_defaults=None):
         if SPEC_PATH_KEY in ctx:
             # TODO(dibyo): Support initializing/re-initializing from passed in
             # JSON-file
-            print('Component already initialized')
+            print('Component already initialized.')
             return 1
 
         spec = ctx[SPEC_KEY]
-        spec['name'] = input('Name: ').strip()
+        spec['name'] = input_name()
         spec['description'] = input('Description: ').strip()
         version = input('Version [{}]: '.format(DEFAULT_VERSION)).strip()
         spec['version'] = Version(version) if version else DEFAULT_VERSION
@@ -197,20 +239,21 @@ def component_commit(component_type: str, message: str, version: Version=None, s
             print('Component not initialized')
             return 1
 
-        if version is not None:
-            ctx[SPEC_KEY]['version'] = version
-        current_version = ctx[SPEC_KEY]['version']
-        last_spec_raw = Git.show('HEAD', SPEC_FILENAME)
-        if last_spec_raw is not None:
-            last_spec = json.loads(last_spec_raw)
-            last_version = Version(last_spec['version'])
-            if last_version >= current_version:
-                print('Version {} not greater than {}'.format(current_version, last_version))
+        current_version = version if version is not None else ctx[SPEC_KEY]['version']
+
+        # Check if version has been incremented.
+        version_tag = VersionTag(component_type, ctx[SPEC_KEY]['name'], current_version)
+        prev_tags = map(VersionTag.parse, Git.tag.list())
+        if prev_tags:
+            last_tag = max(prev_tags)
+            if version_tag <= last_tag:
+                print('Version {} not greater than {}'.format(current_version, last_tag.version))
                 return 1
 
+        ctx[SPEC_KEY]['version'] = current_version
+
     Git.commit(message)
-    Git.tag.create(TAG_NAME_FORMAT.format(type=component_type, version=current_version),
-                   TAG_MESSAGE_FORMAT.format(version=current_version))
+    Git.tag.create(str(version_tag), message)
     return 0
 
 
