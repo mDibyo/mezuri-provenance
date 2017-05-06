@@ -42,7 +42,8 @@ class Git:
     @classmethod
     def push(cls, remote: str):
         return subprocess.check_output(['git', 'push',
-                                        remote, 'master'])
+                                        remote, 'master'],
+                                       stderr=subprocess.STDOUT).decode()
 
     class GitTag:
         @classmethod
@@ -67,5 +68,10 @@ class Git:
         def url(cls, remote_name: str):
             return subprocess.check_output(['git', 'remote',
                                             'get-url', remote_name]).decode()
+
+        @classmethod
+        def add(cls, remote_name: str, remote_url: str):
+            return subprocess.check_output(['git', 'remote',
+                                            'add', remote_name, remote_url]).decode()
 
     remote = GitRemote

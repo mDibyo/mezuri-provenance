@@ -64,7 +64,7 @@ class VersionTag:
         return cls(component_type, component_name, Version(version_str))
 
     def __repr__(self):
-        return '/'.join(['mezuri', self.component_type, self.component_name, self.version])
+        return '/'.join(['mezuri', self.component_type, self.component_name, str(self.version)])
 
     @staticmethod
     def _is_valid_version(other):

@@ -50,8 +50,8 @@ def input_name() -> str:
 
 
 def input_git_remote() -> Dict:
-    remote_url = input('Git remote: ')
-    remote_name = input('Remote name: ')
+    remote_url = input('Git remote url: ').strip()
+    remote_name = input('Git remote name: ').strip()
     return {
         'name': remote_name,
         'url': remote_url
@@ -116,7 +116,7 @@ def save_component_context(context):
         for k, v in context[SPEC_KEY].items():
             if type(v) == Version:
                 v = str(v)
-            spec_to_save[k] = str(v)
+            spec_to_save[k] = v
 
         with open(context[SPEC_PATH_KEY], 'w') as f:
             json.dump(spec_to_save, f, indent=4)
@@ -161,7 +161,7 @@ def component_commit(component_type: str, message: str, version: Version=None, s
 
         # Check if version has been incremented.
         version_tag = VersionTag(component_type, ctx[SPEC_KEY]['name'], current_version)
-        prev_tags = map(VersionTag.parse, Git.tag.list())
+        prev_tags = list(map(VersionTag.parse, Git.tag.list()))
         if prev_tags:
             last_tag = max(prev_tags)
             if version_tag <= last_tag:
@@ -178,7 +178,11 @@ def component_commit(component_type: str, message: str, version: Version=None, s
 def component_publish(component_type: str, spec_defaults=None):
     with component_context(spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
-            print('Component in not initialized')
+            print('Component in not initialized.')
+            return 1
+
+        if not Git.tag.list():
+            print('Component does not have any versions to publish.')
             return 1
 
         spec = ctx[SPEC_KEY]
@@ -186,6 +190,7 @@ def component_publish(component_type: str, spec_defaults=None):
             remote_names = Git.remote.list()
             if not remote_names:
                 remote = input_git_remote()
+                Git.remote.add(remote['name'], remote['url'])
             else:
                 remote_name = input('Git remote [{}]: '.format(', '.join(remote_names))).strip()
                 if remote_name:
@@ -195,6 +200,7 @@ def component_publish(component_type: str, spec_defaults=None):
                     }
                 else:
                     remote = input_git_remote()
+                    Git.remote.add(remote['name'], remote['url'])
 
             registry = input_registry()
             spec['publish'] = {
