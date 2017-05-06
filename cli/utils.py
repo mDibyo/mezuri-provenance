@@ -10,6 +10,51 @@ import re
 from utilities.git import Git
 
 
+@total_ordering
+class Version:
+    """Version represents a semantic version of an entity."""
+
+    version_regex = re.compile(r'(\d).(\d).(\d)')
+
+    def __init__(self, version_str: str):
+        match = self.version_regex.fullmatch(version_str)
+        if match is None:
+            raise RuntimeError('"{}" is not a valid version.'.format(version_str))
+
+        self.major_number, self.minor_number, self.patch_number = map(int, match.groups())
+
+    def __repr__(self):
+        return '{}.{}.{}'.format(self.major_number, self.minor_number, self.patch_number)
+
+    @staticmethod
+    def _is_valid_version(other):
+        return (hasattr(other, 'major_number') and
+                hasattr(other, 'minor_number') and
+                hasattr(other, 'patch_number'))
+
+    def __eq__(self, other: 'Version'):
+        if not self._is_valid_version(other):
+            return NotImplemented
+
+        return (self.major_number == other.major_number and
+                self.minor_number == other.minor_number and
+                self.patch_number == other.patch_number)
+
+    def __gt__(self, other: 'Version'):
+        if not self._is_valid_version(other):
+            return NotImplemented
+
+        if self.major_number > other.major_number:
+            return True
+
+        if self.minor_number > other.minor_number:
+            return True
+
+        return self.patch_number > other.patch_number
+
+DEFAULT_VERSION = Version('0.0.0')
+
+
 """
 Utilities for CLI.
 
@@ -31,7 +76,6 @@ SPEC_KEY = 'spec'
 SPEC_PATH_KEY = 'specPath'
 SPEC_FILENAME = 'specification.json'
 
-DEFAULT_VERSION = '0.0.0'
 DEFAULT_REGISTRY = 'http://registry.mezuri.org'
 
 TAG_NAME_FORMAT = 'mezuri:{component_type}:{version}'
@@ -55,7 +99,7 @@ def input_git_remote():
 
 def input_registry():
     registry = input('registry [{}]: '.format(DEFAULT_REGISTRY)).strip()
-    return registry if registry else DEFAULT_VERSION
+    return registry if registry else DEFAULT_REGISTRY
 
 
 def get_project_root_by_specification():
@@ -85,7 +129,10 @@ def specification():
         return None, None
 
     with open(filename) as f:
-        return json.load(f, object_hook=OrderedDict), filename
+        spec = json.load(f, object_hook=OrderedDict)
+
+    spec['version'] = Version(spec['version'])
+    return spec, filename
 
 
 def calculate_component_context(spec_defaults=None):
@@ -104,8 +151,14 @@ def calculate_component_context(spec_defaults=None):
 
 def save_component_context(context):
     if SPEC_PATH_KEY in context:
+        spec_to_save = OrderedDict()
+        for k, v in context[SPEC_KEY].items():
+            if type(v) == Version:
+                v = str(v)
+            spec_to_save[k] = str(v)
+
         with open(context[SPEC_PATH_KEY], 'w') as f:
-            json.dump(context[SPEC_KEY], f, indent=4)
+            json.dump(spec_to_save, f, indent=4)
 
 
 @contextmanager
@@ -128,8 +181,8 @@ def component_init(spec_defaults=None):
         spec = ctx[SPEC_KEY]
         spec['name'] = input('Name: ').strip()
         spec['description'] = input('Description: ').strip()
-        version = input('Version ({}): '.format(DEFAULT_VERSION)).strip()
-        spec['version'] = version if version else DEFAULT_VERSION
+        version = input('Version [{}]: '.format(DEFAULT_VERSION)).strip()
+        spec['version'] = Version(version) if version else DEFAULT_VERSION
 
         Git.init()
         ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILENAME)
@@ -137,7 +190,7 @@ def component_init(spec_defaults=None):
     return 0
 
 
-def component_commit(component_type: str, message: str, version: str=None, spec_defaults=None):
+def component_commit(component_type: str, message: str, version: Version=None, spec_defaults=None):
     with component_context(spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
             print('Component not initialized')
@@ -145,7 +198,7 @@ def component_commit(component_type: str, message: str, version: str=None, spec_
 
         if version is not None:
             ctx[SPEC_KEY]['version'] = version
-        current_version = Version(ctx[SPEC_KEY]['version'])
+        current_version = ctx[SPEC_KEY]['version']
         last_spec_raw = Git.show('HEAD', SPEC_FILENAME)
         if last_spec_raw is not None:
             last_spec = json.loads(last_spec_raw)
@@ -198,46 +251,3 @@ class Registry:
 
     def push(self, component_type, component_name):
         pass
-
-
-@total_ordering
-class Version:
-    """Version represents a semantic version of an entity."""
-
-    version_regex = re.compile(r'(\d).(\d).(\d)')
-
-    def __init__(self, version_str: str):
-        match = self.version_regex.fullmatch(version_str)
-        if match is None:
-            raise RuntimeError('Invalid version {}.'.format(version_str))
-
-        self.major_number, self.minor_number, self.patch_number = map(int, match.groups())
-
-    def __str__(self):
-        return 'v{}.{}.{}'.format(self.major_number, self.minor_number, self.patch_number)
-
-    @staticmethod
-    def _is_valid_version(other):
-        return (hasattr(other, 'major_number') and
-                hasattr(other, 'minor_number') and
-                hasattr(other, 'patch_number'))
-
-    def __eq__(self, other: 'Version'):
-        if not self._is_valid_version(other):
-            return NotImplemented
-
-        return (self.major_number == other.major_number and
-                self.minor_number == other.minor_number and
-                self.patch_number == other.patch_number)
-
-    def __gt__(self, other: 'Version'):
-        if not self._is_valid_version(other):
-            return NotImplemented
-
-        if self.major_number > other.major_number:
-            return True
-
-        if self.minor_number > other.minor_number:
-            return True
-
-        return self.patch_number > other.patch_number

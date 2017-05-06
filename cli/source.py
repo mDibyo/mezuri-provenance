@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from .utils import SPEC_FILENAME, component_init, component_commit, component_publish
+from .utils import SPEC_FILENAME, component_init, component_commit, component_publish, Version
 
 SOURCE_COMMAND_HELP = 'Work with sources.'
 
@@ -12,7 +12,7 @@ def init(_):
 
 
 def commit(args):
-    return component_commit('source', args.message, args.version)
+    return component_commit('source', args.message, Version(args.version) if args.version else None)
 
 
 def publish():

@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from .utils import SPEC_FILENAME, component_init, component_commit, component_publish
+from .utils import SPEC_FILENAME, component_init, component_commit, component_publish, Version
 
 OPERATOR_COMMAND_HELP = 'Work with operators.'
 
@@ -12,7 +12,7 @@ def init(_) -> int:
 
 
 def commit(args) -> int:
-    return component_commit('operator', args.message, args.version)
+    return component_commit('operator', args.message, Version(args.version) if args.version else None)
 
 
 def publish():
