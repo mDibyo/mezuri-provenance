@@ -78,14 +78,15 @@ SPEC_FILENAME = 'specification.json'
 
 DEFAULT_REGISTRY = 'http://registry.mezuri.org'
 
-TAG_NAME_FORMAT = 'mezuri:{component_type}:{version}'
+TAG_NAME_FORMAT = 'mezuri/{component_type}/{version}'
 TAG_MESSAGE_FORMAT = 'Create Component version {version}'
 
-component_spec_defaults = {
-    'name': None,
-    'description': None,
-    'version': DEFAULT_VERSION
-}
+
+component_spec_defaults = OrderedDict((
+    ('name', None),
+    ('description', None),
+    ('version', DEFAULT_VERSION)
+))
 
 
 def input_git_remote():
@@ -129,7 +130,7 @@ def specification():
         return None, None
 
     with open(filename) as f:
-        spec = json.load(f, object_hook=OrderedDict)
+        spec = json.load(f, object_pairs_hook=OrderedDict)
 
     spec['version'] = Version(spec['version'])
     return spec, filename
