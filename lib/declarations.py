@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from abc import ABCMeta, abstractmethod
-from typing import Dict as _Dict, Callable
+from typing import Dict as _Dict, Callable, Type
 
 
 DECLARATION_ATTR_KEY = '__mezuri_attr__'
@@ -41,7 +41,7 @@ class String(MezuriBaseType):
 class List(MezuriType):
     type = 'MEZURI_LIST'
 
-    def __init__(self, element_type: MezuriType):
+    def __init__(self, element_type: Type[MezuriType]):
         self.element_type = element_type
 
 
@@ -80,13 +80,13 @@ DECLARATION_ATTR_OUTPUT_KEY = '__input__'
 DECLARATION_ATTR_PARAMETER_KEY = '__parameter__'
 
 
-class AbstractInput(AbstractIOP):
+class Input(AbstractIOP):
     _attr_io_key = DECLARATION_ATTR_INPUT_KEY
 
 
-class AbstractOutput(AbstractIOP):
+class Output(AbstractIOP):
     _attr_io_key = DECLARATION_ATTR_OUTPUT_KEY
 
 
-class AbstractParameter(AbstractIOP):
+class Parameter(AbstractIOP):
     _attr_io_key = DECLARATION_ATTR_PARAMETER_KEY
