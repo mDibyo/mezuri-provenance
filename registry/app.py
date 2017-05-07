@@ -7,16 +7,15 @@ registry = Flask(__name__, static_url_path='')
 registry_api = Api(registry)
 
 
-@registry.errorhandler(404)
-def not_found(_):
-    return make_response(jsonify({'error': 'Component not found'}), 404)
-
-
 @registry.errorhandler(409)
 def conflict(_):
     return make_response(jsonify({'error': 'Component already exists'}), 409)
 
 
+operator_list_fields = fields.List(fields.Nested({
+    'name': fields.String,
+    'uri': fields.Url(endpoint='operator', absolute=True),
+}))
 operator_fields = {
     'name': fields.String,
     'uri': fields.Url(endpoint='operator', absolute=True),
@@ -38,8 +37,7 @@ class OperatorListAPI(Resource):
         super().__init__()
 
     def get(self):
-        return {'operators': [marshal(operator, operator_fields)
-                              for operator in operators.values()]}
+        return {'components': marshal(operators.values(), operator_list_fields)}
 
     def post(self):
         args = self.parser.parse_args()
@@ -54,7 +52,7 @@ class OperatorListAPI(Resource):
         }
         operators[args.name] = operator
 
-        return {'operator': marshal(operator, operator_fields)}, 201
+        return {'component': marshal(operator, operator_fields)}, 201
 
 
 class OperatorAPI(Resource):
@@ -66,18 +64,24 @@ class OperatorAPI(Resource):
 
     def get(self, name: str):
         if name not in operators:
-            abort(404)
+            abort(make_response(jsonify({'error': 'Operator does not exist'}), 404))
 
-        return {'operator': marshal(operators[name], operator_fields)}
+        return {'component': marshal(operators[name], operator_fields)}
 
 
 registry_api.add_resource(OperatorListAPI, '/operators', endpoint='operators')
 registry_api.add_resource(OperatorAPI, '/operators/<string:name>', endpoint='operator')
 
 
+operator_version_list_fields = fields.List(fields.Nested({
+    'version': fields.String,
+    'uri': fields.Url(endpoint='operator_version', absolute=True),
+    'hash': fields.String
+}))
 operator_version_fields = {
     'version': fields.String,
     'uri': fields.Url(endpoint='operator_version', absolute=True),
+    'hash': fields.String,
     'operator_name': fields.String,
     'spec': fields.Raw
 }
@@ -88,29 +92,37 @@ class OperatorVersionListAPI(Resource):
     def __init__(self):
         self.parser = reqparse.RequestParser()
         self.parser.add_argument('version', type=str, required=True,
-                                 help='Tag to be published not provided',
+                                 help='Version to be published not provided',
+                                 location='json')
+        self.parser.add_argument('version_hash', type=str, required=True,
+                                 help='Version hash not provided',
                                  location='json')
 
     def get(self, operator_name):
-        return {'versions': [version for version in operator_versions
-                             if version['operator_name'] == operator_name]}
+        return {'versions': marshal([version for version in operator_versions
+                                     if version['operator_name'] == operator_name],
+                                    operator_version_list_fields)}
 
     def post(self, operator_name):
         operator = operators.get(operator_name, None)
         if operator is None:
-            abort(404)
+            abort(make_response(jsonify({'error': 'Operator does not exist'}), 404))
 
         args = self.parser.parse_args()
         if args.version in operator['versions']:
             abort(409)
 
-        # TODO (dibyo): Fetch spec from git repository
-        operator_versions.append({
+        # TODO (dibyo): Fetch spec from git repository.
+        operator_version = {
             'version': args.version,
+            'hash': args.version_hash,
             'operator_name': operator_name,
             'spec': None
-        })
+        }
+        operator_versions.append(operator_version)
         operator['versions'].append(args.version)
+
+        return {'version': marshal(operator_version, operator_version_fields)}, 201
 
 
 class OperatorVersionAPI(Resource):
