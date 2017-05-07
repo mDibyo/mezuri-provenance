@@ -4,32 +4,86 @@ import requests
 
 
 class RegistryClient:
-    def __init__(self, url: str, component_type: str, component_name: str):
+    def __init__(self, url: str, component_type: str, component_name: str=None):
         self.url = url
         self.component_type = component_type
         self.component_name = component_name
 
     @property
-    def component_url(self):
-        return '/'.join([self.url, self.component_type, self.component_name])
-
-    @property
     def components_url(self):
         return '/'.join([self.url, self.component_type])
 
-    def get(self):
+    @property
+    def component_url(self):
+        if self.component_name is None:
+            raise RuntimeError('Component name not provided.')
+
+        return '/'.join([self.url, self.component_type, self.component_name])
+
+    @property
+    def versions_url(self):
+        if self.component_name is None:
+            raise RuntimeError('Component name not provided.')
+
+        return '/'.join([self.url, self.component_type, self.component_name, 'versions'])
+
+    def version_url(self, version: str):
+        if self.component_name is None:
+            raise RuntimeError('Component name not provided.')
+
+        return '/'.join([self.url, self.component_type, self.component_name, 'versions', version])
+
+    def get_component(self):
         response = requests.get(self.component_url, timeout=None)
         if response.status_code == 200:
             return response.json()['component']
         return None
 
-    def push(self, remote_url: str, tag: str):
-        component = self.get()
+    def post_component(self, git_remote_url: str):
+        if self.component_name is None:
+            raise RuntimeError('Component name not provided.')
+
+        response = requests.post(self.components_url, json={
+            'name': self.component_name,
+            'gitRemoteUrl': git_remote_url,
+        }, timeout=None)
+        if response.status_code == 201:
+            return response.json()['component']
+        return None
+
+    def get_component_versions(self):
+        response = requests.get(self.versions_url, timeout=None)
+        if response.status_code == 200:
+            return response.json()['versions']
+        return None
+
+    def get_component_version(self, version: str):
+        response = requests.get(self.version_url(version), timeout=None)
+        if response.status_code == 200:
+            return response.json()['version']
+        return None
+
+    def post_component_version(self, version: str, version_hash: str):
+        response = requests.post(self.versions_url, json={
+            'version': version,
+            'version_hash': version_hash
+        }, timeout=None)
+        if response.status_code == 201:
+            return response.json()['version']
+        return None
+
+    def push(self, remote_url: str, version: str):
+        component = self.get_component()
         print(component)
-        if component is None:  # Component already exists.
-            response = requests.post(self.components_url, json={
-                'name': self.component_name,
-                'gitRemoteUrl': remote_url,
-                'tag': tag
-            }, timeout=None)
-            print(response.json())
+        if component is None:
+            self.post_component(remote_url)
+
+        component_versions = self.get_component_versions()
+        if component_versions is None:
+            raise RuntimeError('Unexpected error: Component not found.')
+        for component_version in component_versions:
+            if component_version['version'] == version:
+                print(component_version)
+                break
+        else:
+            component_version = self.post_component_version(version, '')

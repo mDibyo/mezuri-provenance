@@ -235,4 +235,4 @@ def component_publish(component_type: str, spec_defaults=None):
         publish = spec['publish']
         Git.push(publish['remote']['name'])
         RegistryClient(publish['registry'], component_type, spec['name']).push(publish['remote']['url'],
-                                                                               str(tag_to_publish))
+                                                                               str(tag_to_publish.version))
