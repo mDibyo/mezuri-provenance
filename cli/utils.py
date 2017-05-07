@@ -4,12 +4,12 @@ from collections import OrderedDict
 from contextlib import contextmanager
 import json
 import os
-import requests
 from typing import Dict
 
 from lib.declarations import DECLARATION_ATTR
-from utilities.git import Git
 from utilities.constructs import Version, DEFAULT_VERSION, VersionTag
+from utilities.git import Git
+from utilities.registry import RegistryClient
 
 """
 Utilities for CLI.
@@ -234,34 +234,5 @@ def component_publish(component_type: str, spec_defaults=None):
 
         publish = spec['publish']
         Git.push(publish['remote']['name'])
-        Registry(publish['registry'], component_type, spec['name']).push(publish['remote']['url'],
-                                                                         str(tag_to_publish))
-
-
-class Registry:
-    def __init__(self, url: str, component_type: str, component_name: str):
-        self.url = url
-        self.component_type = component_type
-        self.component_name = component_name
-
-    @property
-    def component_url(self):
-        return '/'.join([self.url, self.component_type, self.component_name])
-
-    @property
-    def components_url(self):
-        return '/'.join([self.url, self.component_type])
-
-    def push(self, remote_url: str, tag: str):
-        # Check if component already exists
-        response = requests.get(self.component_url, timeout=None)
-        if response.status_code == 200:  # Component already exists.
-            print(response.json())
-        else:
-            response = requests.post(self.components_url, json={
-                'name': self.component_name,
-                'gitRemoteUrl': remote_url,
-                'tag': tag
-            }, timeout=None)
-            print(response.json())
-
+        RegistryClient(publish['registry'], component_type, spec['name']).push(publish['remote']['url'],
+                                                                               str(tag_to_publish))
