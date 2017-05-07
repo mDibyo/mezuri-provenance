@@ -65,7 +65,7 @@ def input_registry() -> str:
     return registry if registry else DEFAULT_REGISTRY
 
 
-def get_project_root_by_specification():
+def get_project_root_by_specification() -> str or None:
     directory = os.getcwd()
     while True:
         if os.path.exists(os.path.join(directory, SPEC_FILENAME)):
@@ -169,13 +169,19 @@ def extract_component_declaration(definition_file: str, definition_class: str):
 def component_commit(component_type: str, message: str, version: Version=None, spec_defaults=None):
     with component_context(spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
-            print('Component not initialized')
+            print('Component not initialized.')
             return 1
 
-        current_version = version if version is not None else ctx[SPEC_KEY]['version']
+        spec = ctx[SPEC_KEY]
+
+        # Check if IOP declaration has been added.
+        if 'iop_declaration' not in spec:
+            print('Component IOP declaration not added.')
+            return 1
 
         # Check if version has been incremented.
-        version_tag = VersionTag(component_type, ctx[SPEC_KEY]['name'], current_version)
+        current_version = version if version is not None else spec['version']
+        version_tag = VersionTag(component_type, spec['name'], current_version)
         prev_tags_raw = Git.tag.list()
         if prev_tags_raw:
             last_tag = max(VersionTag.parse(tag) for tag in prev_tags_raw)
@@ -183,8 +189,9 @@ def component_commit(component_type: str, message: str, version: Version=None, s
                 print('Version {} not greater than {}'.format(current_version, last_tag.version))
                 return 1
 
-        ctx[SPEC_KEY]['version'] = current_version
+        spec['version'] = current_version
 
+    Git.add(spec['definition'])
     Git.commit(message)
     Git.tag.create(str(version_tag), message)
     return 0

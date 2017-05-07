@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
+from os.path import relpath
 
 from lib.declarations import DECLARATION_ATTR_INPUT_KEY, DECLARATION_ATTR_OUTPUT_KEY, DECLARATION_ATTR_PARAMETER_KEY
 from utilities.constructs import Version
 from .utils import (
-    SPEC_FILENAME, SPEC_KEY,
+    SPEC_FILENAME, SPEC_KEY, get_project_root_by_specification,
     component_context, component_init, extract_component_declaration,
     component_commit, component_publish
 )
@@ -31,6 +32,7 @@ def generate(args) -> int:
             'outputs': {k: v.serialize() for k, v in decl[DECLARATION_ATTR_OUTPUT_KEY].items()},
             'parameters': {k: v.serialize() for k, v in decl[DECLARATION_ATTR_PARAMETER_KEY].items()}
         }
+        ctx[SPEC_KEY]['definition'] = relpath(filename, get_project_root_by_specification())
     return 0
 
 
