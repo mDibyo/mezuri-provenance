@@ -8,8 +8,8 @@ DECLARATION_ATTR_KEY = '__mezuri_attr__'
 
 
 class MezuriType(metaclass=ABCMeta):
-    @abstractmethod
     @property
+    @abstractmethod
     def type(self):
         return NotImplemented
 
@@ -61,8 +61,8 @@ class MezuriInterface:
 class AbstractIOP(metaclass=ABCMeta):
     _attr_key = DECLARATION_ATTR_KEY
 
-    @abstractmethod
     @property
+    @abstractmethod
     def _attr_io_key(self):
         return NotImplemented
 
@@ -72,15 +72,21 @@ class AbstractIOP(metaclass=ABCMeta):
 
     def __call__(self, callable_: Callable):
         getattr(callable_, self._attr_key)[self._attr_io_key][self.name] = self.type_
+        return callable_
+
+
+DECLARATION_ATTR_INPUT_KEY = '__input__'
+DECLARATION_ATTR_OUTPUT_KEY = '__input__'
+DECLARATION_ATTR_PARAMETER_KEY = '__parameter__'
 
 
 class AbstractInput(AbstractIOP):
-    _attr_io_key = '__input__'
+    _attr_io_key = DECLARATION_ATTR_INPUT_KEY
 
 
 class AbstractOutput(AbstractIOP):
-    _attr_io_key = '__output__'
+    _attr_io_key = DECLARATION_ATTR_OUTPUT_KEY
 
 
 class AbstractParameter(AbstractIOP):
-    _attr_io_key = '__parameter__'
+    _attr_io_key = DECLARATION_ATTR_PARAMETER_KEY
