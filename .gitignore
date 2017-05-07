@@ -4,3 +4,11 @@
 # Python bitfiles
 __pycache__/
 *.py[cod]
+
+# Examples
+examples/operators
+!examples/operators/.keep
+examples/sources
+!examples/sources/.keep
+examples/interfaces
+!examples/interfaces/.keep
