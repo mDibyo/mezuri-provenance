@@ -158,7 +158,10 @@ def extract_component_declaration(definition_file: str, definition_class: str):
         contents = f.read()
 
     globals_ = {}
-    exec(contents, globals_)
+    try:
+        exec(contents, globals_)
+    except Exception:
+        return None
 
     return getattr(globals_[definition_class], DECLARATION_ATTR)
 
