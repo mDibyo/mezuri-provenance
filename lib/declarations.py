@@ -4,7 +4,8 @@ from abc import ABCMeta, abstractmethod
 from typing import Dict as _Dict, Callable
 
 
-DECLARATION_ATTR_KEY = '__mezuri_attr__'
+DECLARATION_ATTR = '__mezuri_dcl__'
+DECLARATION_CREATE_FUNC_ATTR = '__mezuri_dcl_create_func__'
 
 
 class MezuriType(metaclass=ABCMeta):
@@ -56,7 +57,7 @@ class MezuriInterface:
 
 
 class AbstractIOP(metaclass=ABCMeta):
-    _attr_key = DECLARATION_ATTR_KEY
+    _attr_key = DECLARATION_ATTR
 
     @property
     @abstractmethod
@@ -67,7 +68,15 @@ class AbstractIOP(metaclass=ABCMeta):
         self.name = name
         self.type_ = type_
 
+    @staticmethod
+    def _initialize_callable(callable_: Callable):
+        if not hasattr(callable_, DECLARATION_ATTR):
+            setattr(callable_, DECLARATION_ATTR,
+                    getattr(callable_, DECLARATION_CREATE_FUNC_ATTR)())
+
     def __call__(self, callable_: Callable):
+        self._initialize_callable(callable_)
+
         getattr(callable_, self._attr_key)[self._attr_io_key][self.name] = self.type_
         return callable_
 

@@ -5,7 +5,7 @@ from collections import OrderedDict
 from typing import TypeVar
 
 from lib.declarations import (
-    DECLARATION_ATTR_KEY,
+    DECLARATION_CREATE_FUNC_ATTR,
     DECLARATION_ATTR_INPUT_KEY, DECLARATION_ATTR_OUTPUT_KEY, DECLARATION_ATTR_PARAMETER_KEY
 )
 
@@ -14,15 +14,6 @@ OperatorType = TypeVar('OperatorType', bound='AbstractOperator')
 
 
 class AbstractOperator(metaclass=ABCMeta):
-    def __new__(cls, *args, **kwargs):
-        setattr(cls, DECLARATION_ATTR_KEY, {
-            DECLARATION_ATTR_INPUT_KEY: OrderedDict(),
-            DECLARATION_ATTR_OUTPUT_KEY: OrderedDict(),
-            DECLARATION_ATTR_PARAMETER_KEY: OrderedDict()
-        })
-
-        return super(*args, **kwargs)
-
     @abstractmethod
     def __init__(
         self,
@@ -37,35 +28,36 @@ class AbstractOperator(metaclass=ABCMeta):
     ) -> 'getattr(OperatorType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_OUTPUT_KEY]':
         pass
 
+setattr(AbstractOperator, DECLARATION_CREATE_FUNC_ATTR, lambda: {
+    DECLARATION_ATTR_INPUT_KEY: OrderedDict(),
+    DECLARATION_ATTR_OUTPUT_KEY: OrderedDict(),
+    DECLARATION_ATTR_PARAMETER_KEY: OrderedDict()
+})
+
 
 InterfaceType = TypeVar('InterfaceType', bound='AbstractInterface')
 
 
 class AbstractInterface(metaclass=ABCMeta):
-    def __new__(cls, *args, **kwargs):
-        setattr(cls, DECLARATION_ATTR_KEY, {
-            DECLARATION_ATTR_INPUT_KEY: OrderedDict(),
-        })
-
-        return super(*args, **kwargs)
-
     def __init__(
         self,
         **interface: 'getattr(InterfaceType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_INPUT_KEY]'
     ) -> None:
         pass
 
+setattr(AbstractInterface, DECLARATION_CREATE_FUNC_ATTR, lambda: {
+    DECLARATION_ATTR_INPUT_KEY: OrderedDict(),
+})
+
 
 SourceType = TypeVar('SourceType', bound='AbstractSource')
 
 
 class AbstractSource(metaclass=ABCMeta):
-    def __new__(cls, *args, **kwargs):
-        setattr(cls, DECLARATION_ATTR_KEY, {
-            DECLARATION_ATTR_OUTPUT_KEY: OrderedDict()
-        })
-
-        return super(*args, **kwargs)
-
     def __call__(self) -> 'getattr(SourceType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_OUTPUT_KEY]':
         pass
+
+setattr(AbstractSource, DECLARATION_CREATE_FUNC_ATTR, lambda: {
+    DECLARATION_ATTR_OUTPUT_KEY: OrderedDict()
+})
+
