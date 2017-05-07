@@ -1,55 +1,52 @@
 #!/usr/bin/env python3
 
 from abc import ABCMeta, abstractmethod
-from typing import Dict as _Dict, Callable, Type
+from typing import Dict as _Dict, Callable
 
 
 DECLARATION_ATTR_KEY = '__mezuri_attr__'
 
 
 class MezuriType(metaclass=ABCMeta):
-    @property
+    data_type = NotImplemented
+
     @abstractmethod
-    def type(self):
+    def serialize(self):
         return NotImplemented
 
 
 class MezuriBaseType(MezuriType, metaclass=ABCMeta):
-    pass
+    def __init__(self, data_type):
+        self.data_type = data_type
+
+    def serialize(self):
+        return self.data_type
 
 
-class Int(MezuriBaseType):
-    type = 'MEZURI_INT'
-
-
-class UInt(MezuriBaseType):
-    type = 'MEZURI_UINT'
-
-
-class Bool(MezuriBaseType):
-    type = 'MEZURI_BOOL'
-
-
-class Double(MezuriBaseType):
-    type = 'MEZURI_DOUBLE'
-
-
-class String(MezuriBaseType):
-    type = 'MEZURI_STRING'
+Int = MezuriBaseType('INT')
+Bool = MezuriBaseType('BOOL')
+Double = MezuriBaseType('DOUBLE')
+String = MezuriBaseType('STRING')
 
 
 class List(MezuriType):
-    type = 'MEZURI_LIST'
+    data_type = 'MEZURI_LIST'
 
-    def __init__(self, element_type: Type[MezuriType]):
+    def __init__(self, element_type: MezuriType):
         self.element_type = element_type
+
+    def serialize(self):
+        return [self.element_type.serialize()]
 
 
 class Dict(MezuriType):
-    type = 'MEZURI_DICT'
+    data_type = 'MEZURI_DICT'
 
     def __init__(self, definition: _Dict[str, MezuriType]):
         self.definition = definition
+
+    def serialize(self):
+        return {k: v.serialize() for k, v in self.definition}
 
 
 class MezuriInterface:
@@ -76,7 +73,7 @@ class AbstractIOP(metaclass=ABCMeta):
 
 
 DECLARATION_ATTR_INPUT_KEY = '__input__'
-DECLARATION_ATTR_OUTPUT_KEY = '__input__'
+DECLARATION_ATTR_OUTPUT_KEY = '__output__'
 DECLARATION_ATTR_PARAMETER_KEY = '__parameter__'
 
 
