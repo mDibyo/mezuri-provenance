@@ -12,11 +12,11 @@ def init(_) -> int:
 
 
 def commit(args) -> int:
-    return component_commit('operator', args.message, Version(args.version) if args.version else None)
+    return component_commit('operators', args.message, Version(args.version) if args.version else None)
 
 
 def publish(_):
-    return component_publish('operator')
+    return component_publish('operators')
 
 
 def add_operator_commands(parser):

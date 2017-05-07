@@ -4,6 +4,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 import json
 import os
+import requests
 from typing import Dict
 
 from utilities.git import Git
@@ -161,9 +162,9 @@ def component_commit(component_type: str, message: str, version: Version=None, s
 
         # Check if version has been incremented.
         version_tag = VersionTag(component_type, ctx[SPEC_KEY]['name'], current_version)
-        prev_tags = list(map(VersionTag.parse, Git.tag.list()))
-        if prev_tags:
-            last_tag = max(prev_tags)
+        prev_tags_raw = Git.tag.list()
+        if prev_tags_raw:
+            last_tag = max(VersionTag.parse(tag) for tag in prev_tags_raw)
             if version_tag <= last_tag:
                 print('Version {} not greater than {}'.format(current_version, last_tag.version))
                 return 1
@@ -176,13 +177,15 @@ def component_commit(component_type: str, message: str, version: Version=None, s
 
 
 def component_publish(component_type: str, spec_defaults=None):
+    tags = Git.tag.list()
+    if not tags:
+        print('Component does not have any versions to publish.')
+        return 1
+    tag_to_publish = max(VersionTag.parse(tag) for tag in tags)
+
     with component_context(spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
             print('Component in not initialized.')
-            return 1
-
-        if not Git.tag.list():
-            print('Component does not have any versions to publish.')
             return 1
 
         spec = ctx[SPEC_KEY]
@@ -210,12 +213,34 @@ def component_publish(component_type: str, spec_defaults=None):
 
         publish = spec['publish']
         Git.push(publish['remote']['name'])
-        Registry(publish['registry']).push(component_type, spec['name'])
+        Registry(publish['registry'], component_type, spec['name']).push(publish['remote']['url'],
+                                                                         str(tag_to_publish))
 
 
 class Registry:
-    def __init__(self, url: str):
+    def __init__(self, url: str, component_type: str, component_name: str):
         self.url = url
+        self.component_type = component_type
+        self.component_name = component_name
 
-    def push(self, component_type, component_name):
-        pass
+    @property
+    def component_url(self):
+        return '/'.join([self.url, self.component_type, self.component_name])
+
+    @property
+    def components_url(self):
+        return '/'.join([self.url, self.component_type])
+
+    def push(self, remote_url: str, tag: str):
+        # Check if component already exists
+        response = requests.get(self.component_url, timeout=None)
+        if response.status_code == 200:  # Component already exists.
+            print(response.json())
+        else:
+            response = requests.post(self.components_url, json={
+                'name': self.component_name,
+                'gitRemoteUrl': remote_url,
+                'tag': tag
+            }, timeout=None)
+            print(response.json())
+
