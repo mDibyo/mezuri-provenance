@@ -7,6 +7,7 @@ import os
 import requests
 from typing import Dict
 
+from lib.declarations import DECLARATION_ATTR
 from utilities.git import Git
 from utilities.constructs import Version, DEFAULT_VERSION, VersionTag
 
@@ -150,6 +151,16 @@ def component_init(spec_defaults=None):
         ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILENAME)
     Git.add(SPEC_FILENAME)
     return 0
+
+
+def extract_component_declaration(definition_file: str, definition_class: str):
+    with open(definition_file) as f:
+        contents = f.read()
+
+    globals_ = {}
+    exec(contents, globals_)
+
+    return getattr(globals_[definition_class], DECLARATION_ATTR)
 
 
 def component_commit(component_type: str, message: str, version: Version=None, spec_defaults=None):

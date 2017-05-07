@@ -2,13 +2,36 @@
 
 from argparse import ArgumentParser
 
-from .utils import SPEC_FILENAME, component_init, component_commit, component_publish, Version
+from lib.declarations import DECLARATION_ATTR_INPUT_KEY, DECLARATION_ATTR_OUTPUT_KEY, DECLARATION_ATTR_PARAMETER_KEY
+from utilities.constructs import Version
+from .utils import (
+    SPEC_FILENAME, SPEC_KEY,
+    component_context, component_init, extract_component_declaration,
+    component_commit, component_publish
+)
 
 OPERATOR_COMMAND_HELP = 'Work with operators.'
+
+DEFAULT_DEFINITION_FILE = 'operator.py'
 
 
 def init(_) -> int:
     return component_init()
+
+
+def generate(args) -> int:
+    filename = args.file if args.file is not None else DEFAULT_DEFINITION_FILE
+    decl = extract_component_declaration(filename, 'Operator')
+    if decl is None:
+        print('Could not evaluate operator definition file {}'.format(filename))
+
+    with component_context() as ctx:
+        ctx[SPEC_KEY]['iop_declaration'] = {
+            'inputs': {k: v.serialize() for k, v in decl[DECLARATION_ATTR_INPUT_KEY].items()},
+            'outputs': {k: v.serialize() for k, v in decl[DECLARATION_ATTR_OUTPUT_KEY].items()},
+            'parameters': {k: v.serialize() for k, v in decl[DECLARATION_ATTR_PARAMETER_KEY].items()}
+        }
+    return 0
 
 
 def commit(args) -> int:
@@ -27,6 +50,16 @@ def add_operator_commands(parser):
                                              help='Initialize an operator.',
                                              description='Initialize an operator.')
     init_parser.set_defaults(command=init)
+
+    # Generate
+    generate_parser = command_parsers.add_parser('generate',
+                                                 help='Generate the Input, Output and Parameter'
+                                                      'specifications from the operator definition'
+                                                      'in the specified file.')
+    generate_parser.set_defaults(command=generate)
+    generate_parser.add_argument('-f', '--file',
+                                 help='The operator definition file. If not provided, {} is '
+                                      'assumed.'.format(DEFAULT_DEFINITION_FILE))
 
     # Commit
     commit_parser = command_parsers.add_parser('commit',
