@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 from abc import ABCMeta, abstractmethod
-from typing import Dict as _Dict
+from typing import Dict as _Dict, Callable
+
+
+DECLARATION_ATTR_KEY = '__mezuri_attr__'
 
 
 class MezuriType(metaclass=ABCMeta):
@@ -11,27 +14,27 @@ class MezuriType(metaclass=ABCMeta):
         return NotImplemented
 
 
-class BaseType(MezuriType, metaclass=ABCMeta):
+class MezuriBaseType(MezuriType, metaclass=ABCMeta):
     pass
 
 
-class Int(BaseType):
+class Int(MezuriBaseType):
     type = 'MEZURI_INT'
 
 
-class UInt(BaseType):
+class UInt(MezuriBaseType):
     type = 'MEZURI_UINT'
 
 
-class Bool(BaseType):
+class Bool(MezuriBaseType):
     type = 'MEZURI_BOOL'
 
 
-class Double(BaseType):
+class Double(MezuriBaseType):
     type = 'MEZURI_DOUBLE'
 
 
-class String(BaseType):
+class String(MezuriBaseType):
     type = 'MEZURI_STRING'
 
 
@@ -49,7 +52,35 @@ class Dict(MezuriType):
         self.definition = definition
 
 
-class Interface:
+class MezuriInterface:
     def __init__(self, interface_name: str, version_str: str):
         self.interface_name = interface_name
         self.version_str = version_str
+
+
+class AbstractIOP(metaclass=ABCMeta):
+    _attr_key = DECLARATION_ATTR_KEY
+
+    @abstractmethod
+    @property
+    def _attr_io_key(self):
+        return NotImplemented
+
+    def __init__(self, name: str, type_: MezuriBaseType or MezuriInterface):
+        self.name = name
+        self.type_ = type_
+
+    def __call__(self, callable_: Callable):
+        getattr(callable_, self._attr_key)[self._attr_io_key][self.name] = self.type_
+
+
+class AbstractInput(AbstractIOP):
+    _attr_io_key = '__input__'
+
+
+class AbstractOutput(AbstractIOP):
+    _attr_io_key = '__output__'
+
+
+class AbstractParameter(AbstractIOP):
+    _attr_io_key = '__parameter__'
