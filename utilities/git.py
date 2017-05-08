@@ -10,6 +10,18 @@ class Git:
         return subprocess.check_output(['git', 'init'])
 
     @classmethod
+    def clone(cls, url: str, directory: str=None) -> bool:
+        cmd = ['git', 'clone',
+               url]
+        if directory is not None:
+            cmd.append(directory)
+        try:
+            subprocess.check_output(cmd)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    @classmethod
     def add(cls, filename: str):
         return subprocess.check_output(['git', 'add', filename])
 

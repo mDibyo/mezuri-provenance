@@ -2,9 +2,25 @@
 
 from flask import Flask, abort, make_response, jsonify
 from flask_restful import Api, Resource, reqparse, fields, marshal
+import json
+
+from utilities import temporary_dir, working_dir, SPEC_FILENAME
+from utilities.git import Git
 
 registry = Flask(__name__, static_url_path='')
 registry_api = Api(registry)
+
+
+def fetch_remote_spec(remote_url: str):
+    with temporary_dir() as directory:
+        success = Git.clone(remote_url, directory)
+        if not success:
+            return None
+
+        print(directory)
+        with working_dir(directory):
+            with open(SPEC_FILENAME) as f:
+                return json.load(f)
 
 
 @registry.errorhandler(409)
@@ -19,7 +35,7 @@ operator_list_fields = fields.List(fields.Nested({
 operator_fields = {
     'name': fields.String,
     'uri': fields.Url(endpoint='operator', absolute=True),
-    'gitRemoteUrl': fields.Url,
+    'gitRemoteUrl': fields.String,
     'versions': fields.List(fields.String),
 }
 operators = {}
@@ -73,11 +89,11 @@ registry_api.add_resource(OperatorListAPI, '/operators', endpoint='operators')
 registry_api.add_resource(OperatorAPI, '/operators/<string:name>', endpoint='operator')
 
 
-operator_version_list_fields = fields.List(fields.Nested({
+operator_version_for_list_fields = {
     'version': fields.String,
     'uri': fields.Url(endpoint='operator_version', absolute=True),
     'hash': fields.String
-}))
+}
 operator_version_fields = {
     'version': fields.String,
     'uri': fields.Url(endpoint='operator_version', absolute=True),
@@ -99,9 +115,12 @@ class OperatorVersionListAPI(Resource):
                                  location='json')
 
     def get(self, operator_name):
-        return {'versions': marshal([version for version in operator_versions
-                                     if version['operator_name'] == operator_name],
-                                    operator_version_list_fields)}
+        if operator_name not in operators:
+            abort(make_response(jsonify({'error': 'Operator does not exist'}), 404))
+
+        return {'versions': [marshal(version, operator_version_for_list_fields)
+                             for version in operator_versions
+                             if version['operator_name'] == operator_name]}
 
     def post(self, operator_name):
         operator = operators.get(operator_name, None)
@@ -112,12 +131,15 @@ class OperatorVersionListAPI(Resource):
         if args.version in operator['versions']:
             abort(409)
 
-        # TODO (dibyo): Fetch spec from git repository.
+        # TODO (dibyo): Fetch spec from git repository for specific version.
+        spec = fetch_remote_spec(operator['gitRemoteUrl'])
+        if spec is None:
+            abort(make_response(jsonify({'error': 'Remote repository is not readable'}), 400))
         operator_version = {
             'version': args.version,
             'hash': args.version_hash,
             'operator_name': operator_name,
-            'spec': None
+            'spec': spec
         }
         operator_versions.append(operator_version)
         operator['versions'].append(args.version)
@@ -127,6 +149,9 @@ class OperatorVersionListAPI(Resource):
 
 class OperatorVersionAPI(Resource):
     def get(self, operator_name, version):
+        if operator_name not in operators:
+            abort(make_response(jsonify({'error': 'Operator does not exist'}), 404))
+
         for operator_version in operator_versions:
             if operator_version['operator_name'] == operator_name:
                 if operator_version['version'] == version:
@@ -134,7 +159,7 @@ class OperatorVersionAPI(Resource):
                         'operator_version': marshal(operator_version, operator_version_fields)
                     }
 
-        abort(404)
+        abort(make_response(jsonify({'error': 'Operator version does not exist'}), 404))
 
 
 registry_api.add_resource(OperatorVersionListAPI, '/operators/<operator_name>/versions',

@@ -38,7 +38,7 @@ def commit(args):
     return component_commit('interface', args.message, Version(args.version) if args.version else None)
 
 
-def publish():
+def publish(_):
     return component_publish('interface')
 
 

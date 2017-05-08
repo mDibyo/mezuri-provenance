@@ -7,6 +7,7 @@ import os
 from typing import Dict
 
 from lib.declarations import DECLARATION_ATTR
+from utilities import SPEC_FILENAME
 from utilities.constructs import Version, DEFAULT_VERSION, VersionTag
 from utilities.git import Git
 from utilities.registry import RegistryClient
@@ -30,7 +31,6 @@ specification.json format:
 """
 SPEC_KEY = 'spec'
 SPEC_PATH_KEY = 'specPath'
-SPEC_FILENAME = 'specification.json'
 
 DEFAULT_REGISTRY = 'http://registry.mezuri.org'
 
