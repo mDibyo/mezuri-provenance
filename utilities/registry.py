@@ -2,6 +2,8 @@
 
 import requests
 
+from utilities.constructs import VersionTag
+
 
 class RegistryClient:
     def __init__(self, url: str, component_type: str, component_name: str=None):
@@ -63,27 +65,26 @@ class RegistryClient:
             return response.json()['version']
         return None
 
-    def post_component_version(self, version: str, version_hash: str):
+    def post_component_version(self, version: str, version_tag: str, version_hash: str):
         response = requests.post(self.versions_url, json={
             'version': version,
+            'version_tag': version_tag,
             'version_hash': version_hash
         }, timeout=None)
         if response.status_code == 201:
             return response.json()['version']
         return None
 
-    def push(self, remote_url: str, version: str):
+    def push(self, remote_url: str, version_tag: VersionTag, version_hash: str):
+        version_str = str(version_tag.version)
         component = self.get_component()
-        print(component)
         if component is None:
             self.post_component(remote_url)
 
         component_versions = self.get_component_versions()
-        if component_versions is None:
-            raise RuntimeError('Unexpected error: Component not found.')
+        assert component_versions is not None
         for component_version in component_versions:
-            if component_version['version'] == version:
-                print(component_version)
+            if component_version['version'] == version_str:
                 break
         else:
-            component_version = self.post_component_version(version, '')
+            self.post_component_version(version_str, str(version_tag), version_hash)

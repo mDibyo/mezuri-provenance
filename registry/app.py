@@ -11,14 +11,15 @@ registry = Flask(__name__, static_url_path='')
 registry_api = Api(registry)
 
 
-def fetch_remote_spec(remote_url: str):
+def fetch_remote_spec(remote_url: str, version_hash: str, version_tag: str):
     with temporary_dir() as directory:
-        success = Git.clone(remote_url, directory)
-        if not success:
-            return None
+        if not Git.clone(remote_url, directory):
+            abort(make_response(jsonify({'error': 'Remote repository is not readable'}), 400))
 
-        print(directory)
         with working_dir(directory):
+            if Git.rev_parse(version_tag) != version_hash:
+                abort(make_response(jsonify({'error': 'Remote repository version does not match'}), 400))
+            Git.checkout(version_hash)
             with open(SPEC_FILENAME) as f:
                 return json.load(f)
 
@@ -110,6 +111,9 @@ class OperatorVersionListAPI(Resource):
         self.parser.add_argument('version', type=str, required=True,
                                  help='Version to be published not provided',
                                  location='json')
+        self.parser.add_argument('version_tag', type=str, required=True,
+                                 help='Version tag not provided',
+                                 location='json')
         self.parser.add_argument('version_hash', type=str, required=True,
                                  help='Version hash not provided',
                                  location='json')
@@ -132,9 +136,7 @@ class OperatorVersionListAPI(Resource):
             abort(409)
 
         # TODO (dibyo): Fetch spec from git repository for specific version.
-        spec = fetch_remote_spec(operator['gitRemoteUrl'])
-        if spec is None:
-            abort(make_response(jsonify({'error': 'Remote repository is not readable'}), 400))
+        spec = fetch_remote_spec(operator['gitRemoteUrl'], args.version_hash, args.version_tag)
         operator_version = {
             'version': args.version,
             'hash': args.version_hash,

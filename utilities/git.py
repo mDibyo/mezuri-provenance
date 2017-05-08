@@ -16,14 +16,24 @@ class Git:
         if directory is not None:
             cmd.append(directory)
         try:
-            subprocess.check_output(cmd)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             return True
-        except subprocess.CalledProcessError:
-            return False
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 128:
+                return False
+            raise
+
+    @classmethod
+    def checkout(cls, reference):
+        return subprocess.check_output(['git', 'checkout', reference], stderr=subprocess.STDOUT)
 
     @classmethod
     def add(cls, filename: str):
         return subprocess.check_output(['git', 'add', filename])
+
+    @classmethod
+    def rev_parse(cls, obj: str):
+        return subprocess.check_output(['git', 'rev-parse', obj]).decode().strip()
 
     @classmethod
     def commit(cls, message: str, allow_empty: bool=False):
@@ -37,7 +47,7 @@ class Git:
         except subprocess.CalledProcessError:
             return None
 
-        return subprocess.check_output(['git', 'rev-parse', 'HEAD'])
+        return cls.rev_parse('HEAD')
 
     @classmethod
     def show(cls, filename: str, revision: str='HEAD'):
@@ -52,9 +62,9 @@ class Git:
             raise
 
     @classmethod
-    def push(cls, remote: str):
+    def push(cls, remote: str, reference: str='master'):
         return subprocess.check_output(['git', 'push',
-                                        remote, 'master'],
+                                        remote, reference],
                                        stderr=subprocess.STDOUT).decode()
 
     class GitTag:
@@ -64,10 +74,16 @@ class Git:
 
         @classmethod
         def create(cls, name: str, message: str):
-            return subprocess.check_output(['git', 'tag',
-                                            '-a',
-                                            '-m', message,
-                                            name])
+            subprocess.check_output(['git', 'tag',
+                                     '-a',
+                                     '-m', message,
+                                     name])
+
+            return cls.hash(name)
+
+        @classmethod
+        def hash(cls, name: str):
+            return Git.rev_parse(name)
 
     tag = GitTag
 
