@@ -24,11 +24,6 @@ def fetch_remote_spec(remote_url: str, version_hash: str, version_tag: str):
                 return json.load(f)
 
 
-@registry.errorhandler(409)
-def conflict(_):
-    return make_response(jsonify({'error': 'Component already exists'}), 409)
-
-
 operator_list_fields = fields.List(fields.Nested({
     'name': fields.String,
     'uri': fields.Url(endpoint='operator', absolute=True),
@@ -60,7 +55,7 @@ class OperatorListAPI(Resource):
         args = self.parser.parse_args()
 
         if args.name in operators:
-            abort(409)
+            abort(make_response(jsonify({'error': 'Component already exists'}), 409))
 
         operator = {
             'name': args.name,
@@ -133,7 +128,7 @@ class OperatorVersionListAPI(Resource):
 
         args = self.parser.parse_args()
         if args.version in operator['versions']:
-            abort(409)
+            abort(make_response(jsonify({'error': 'Component version already exists'}), 409))
 
         # TODO (dibyo): Fetch spec from git repository for specific version.
         spec = fetch_remote_spec(operator['gitRemoteUrl'], args.version_hash, args.version_tag)
