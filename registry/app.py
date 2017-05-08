@@ -27,10 +27,10 @@ def fetch_remote_spec(remote_url: str, version_hash: str, version_tag: str):
 def generate_component_api(api: Api, component_type: str,
                            component_endpoint: str, component_list_endpoint: str,
                            version_endpoint: str, version_list_endpoint: str):
-    component_list_fields = fields.List(fields.Nested({
+    component_for_list_fields = {
         'name': fields.String,
         'uri': fields.Url(endpoint=component_endpoint, absolute=True),
-    }))
+    }
     component_fields = {
         'name': fields.String,
         'uri': fields.Url(endpoint=component_endpoint, absolute=True),
@@ -51,7 +51,8 @@ def generate_component_api(api: Api, component_type: str,
             super().__init__()
 
         def get(self):
-            return {'components': marshal(components.values(), component_list_fields)}
+            return {'components': [marshal(component, component_for_list_fields)
+                                   for component in components.values()]}
 
         def post(self):
             args = self.parser.parse_args()
