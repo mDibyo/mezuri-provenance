@@ -5,6 +5,10 @@ import requests
 from utilities.constructs import VersionTag
 
 
+class RegistryError(BaseException):
+    pass
+
+
 class RegistryClient:
     def __init__(self, url: str, component_type: str, component_name: str=None):
         self.url = url
@@ -37,7 +41,7 @@ class RegistryClient:
 
     def get_component(self):
         response = requests.get(self.component_url, timeout=None)
-        if response.status_code == 200:
+        if response.status_code == requests.codes.ok:
             return response.json()['component']
         return None
 
@@ -49,19 +53,20 @@ class RegistryClient:
             'name': self.component_name,
             'gitRemoteUrl': git_remote_url,
         }, timeout=None)
-        if response.status_code == 201:
+        if response.status_code == requests.codes.created:
             return response.json()['component']
-        return None
+        raise RegistryError('Component {} could not be added: {}'.format(
+            self.component_name, response.json()['error']))
 
     def get_component_versions(self):
         response = requests.get(self.versions_url, timeout=None)
-        if response.status_code == 200:
+        if response.status_code == requests.codes.ok:
             return response.json()['versions']
         return None
 
     def get_component_version(self, version: str):
         response = requests.get(self.version_url(version), timeout=None)
-        if response.status_code == 200:
+        if response.status_code == requests.codes.ok:
             return response.json()['version']
         return None
 
@@ -71,9 +76,10 @@ class RegistryClient:
             'version_tag': version_tag,
             'version_hash': version_hash
         }, timeout=None)
-        if response.status_code == 201:
+        if response.status_code == requests.codes.created:
             return response.json()['version']
-        return None
+        raise RegistryError('Component version {} could not be added: {}'.format(
+            version, response.json()['error']))
 
     def push(self, remote_url: str, version_tag: VersionTag, version_hash: str):
         version_str = str(version_tag.version)

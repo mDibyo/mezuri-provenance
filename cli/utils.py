@@ -10,7 +10,7 @@ from lib.declarations import DECLARATION_ATTR
 from utilities import SPEC_FILENAME
 from utilities.constructs import Version, DEFAULT_VERSION, VersionTag
 from utilities.git import Git
-from utilities.registry import RegistryClient
+from utilities.registry import RegistryClient, RegistryError
 
 """
 Utilities for CLI.
@@ -210,7 +210,9 @@ def component_publish(component_type: str, spec_defaults=None):
             return 1
 
         spec = ctx[SPEC_KEY]
-        if 'publish' not in spec:  # Component has never been published before.
+        publish = spec.get('publish', None)
+
+        if publish is None:  # Component has never been published before.
             remote_names = Git.remote.list()
             if not remote_names:
                 remote = input_git_remote()
@@ -225,18 +227,32 @@ def component_publish(component_type: str, spec_defaults=None):
                 else:
                     remote = input_git_remote()
                     Git.remote.add(remote['name'], remote['url'])
-
             registry = input_registry()
-            spec['publish'] = {
+
+            publish = {
                 'remote': remote,
                 'registry': registry
             }
 
-        publish = spec['publish']
-        Git.push(publish['remote']['name'])
-        Git.push(publish['remote']['name'], str(tag_to_publish))
+        if not Git.push(publish['remote']['name']):
+            print('Component could not be pushed to remote, possibly due to a conflict.')
+            return 1
+        spec['publish'] = publish
+
+    if Git.commit('Update specification', substitute_author=True) is not None:
+        tag_message = Git.tag.message(str(tag_to_publish))
+        tag_to_publish = tag_to_publish.with_incremented_update_num()
+        Git.tag.create(str(tag_to_publish), tag_message)
+
+    if not Git.push(publish['remote']['name'], str(tag_to_publish)):
+        print('Component version could not be pushed to remote, possibly due to a conflict.')
+        return 1
+
+    try:
         RegistryClient(publish['registry'], component_type, spec['name']).push(
             publish['remote']['url'],
             tag_to_publish,
             Git.tag.hash(str(tag_to_publish))
         )
+    except RegistryError as e:
+        print('Component could not be published: {}.'.format(e))

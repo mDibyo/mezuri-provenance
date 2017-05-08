@@ -3,8 +3,9 @@
 from argparse import ArgumentParser
 from os.path import relpath
 
-from lib.declarations import DECLARATION_ATTR_INPUT_KEY, DECLARATION_ATTR_OUTPUT_KEY, DECLARATION_ATTR_PARAMETER_KEY
+from lib.declarations import DECLARATION_ATTR_INPUT_KEY
 from utilities.constructs import Version
+from utilities.git import Git
 from .utils import (
     SPEC_FILENAME, SPEC_KEY, get_project_root_by_specification,
     component_context, component_init, extract_component_declaration,
@@ -22,15 +23,19 @@ def init(_):
 
 def generate(args):
     filename = args.file if args.file is not None else DEFAULT_DEFINITION_FILE
-    decl = extract_component_declaration(filename, 'Interface')
-    if decl is None:
+    dcl = extract_component_declaration(filename, 'Interface')
+    if dcl is None:
         print('Could not evaluate operator definition file {}'.format(filename))
 
+    definition_filename = relpath(filename, get_project_root_by_specification())
     with component_context() as ctx:
         ctx[SPEC_KEY]['iop_declaration'] = {
-            'inputs': {k: v.serialize() for k, v in decl[DECLARATION_ATTR_INPUT_KEY].items()},
+            'inputs': {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_INPUT_KEY].items()},
         }
-        ctx[SPEC_KEY]['definition'] = relpath(filename, get_project_root_by_specification())
+        ctx[SPEC_KEY]['definition'] = definition_filename
+
+    Git.add(SPEC_FILENAME)
+    Git.add(definition_filename)
     return 0
 
 
