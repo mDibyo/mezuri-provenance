@@ -23,7 +23,6 @@ class MezuriBaseType(MezuriType, metaclass=ABCMeta):
     def serialize(self):
         return self.data_type
 
-
 Int = MezuriBaseType('INT')
 Bool = MezuriBaseType('BOOL')
 Double = MezuriBaseType('DOUBLE')
@@ -31,29 +30,35 @@ String = MezuriBaseType('STRING')
 
 
 class List(MezuriType):
-    data_type = 'MEZURI_LIST'
+    data_type = 'LIST'
 
     def __init__(self, element_type: MezuriType):
         self.element_type = element_type
 
     def serialize(self):
-        return [self.element_type.serialize()]
+        return self.data_type, self.element_type.serialize()
 
 
 class Dict(MezuriType):
-    data_type = 'MEZURI_DICT'
+    data_type = 'DICT'
 
     def __init__(self, definition: _Dict[str, MezuriType]):
         self.definition = definition
 
     def serialize(self):
-        return {k: v.serialize() for k, v in self.definition}
+        return self.data_type, {k: v.serialize() for k, v in self.definition}
 
 
-class MezuriInterface:
-    def __init__(self, interface_name: str, version_str: str):
+class InterfaceProxy:
+    data_type = 'INTERFACE'
+
+    def __init__(self, interface_registry: str, interface_name: str, version_str: str):
+        self.interface_registry = interface_registry
         self.interface_name = interface_name
         self.version_str = version_str
+
+    def serialize(self):
+        return self.data_type, (self.interface_registry, self.interface_name, self.version_str)
 
 
 class AbstractIOP(metaclass=ABCMeta):
@@ -64,7 +69,7 @@ class AbstractIOP(metaclass=ABCMeta):
     def _attr_io_key(self):
         return NotImplemented
 
-    def __init__(self, name: str, type_: MezuriBaseType or MezuriInterface):
+    def __init__(self, name: str, type_: MezuriBaseType or InterfaceProxy):
         self.name = name
         self.type_ = type_
 
@@ -79,7 +84,6 @@ class AbstractIOP(metaclass=ABCMeta):
 
         getattr(callable_, self._attr_key)[self._attr_io_key][self.name] = self.type_
         return callable_
-
 
 DECLARATION_ATTR_INPUT_KEY = '__input__'
 DECLARATION_ATTR_OUTPUT_KEY = '__output__'
