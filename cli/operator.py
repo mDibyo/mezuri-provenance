@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
+from collections import OrderedDict
 from os.path import relpath
 
 from lib.declarations import (
@@ -17,6 +18,7 @@ from .utils import (
 OPERATOR_COMMAND_HELP = 'Work with operators.'
 
 DEFAULT_DEFINITION_FILE = 'operator.py'
+DEFINITION_CLASS_REF = '__mezuri_operator__'
 
 
 def init(_) -> int:
@@ -25,17 +27,17 @@ def init(_) -> int:
 
 def generate(args) -> int:
     filename = args.file if args.file is not None else DEFAULT_DEFINITION_FILE
-    dcl = extract_component_declaration(filename, 'Operator')
+    dcl = extract_component_declaration(filename, DEFINITION_CLASS_REF)
     if dcl is None:
         print('Could not evaluate operator definition file {}'.format(filename))
 
     definition_filename = relpath(filename, get_project_root_by_specification())
     with component_context() as ctx:
-        ctx[SPEC_KEY]['iop_declaration'] = {
-            'inputs': {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_INPUT_KEY].items()},
-            'outputs': {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_OUTPUT_KEY].items()},
-            'parameters': {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_PARAMETER_KEY].items()}
-        }
+        ctx[SPEC_KEY]['iop_declaration'] = OrderedDict((
+            ('inputs', {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_INPUT_KEY].items()}),
+            ('outputs', {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_OUTPUT_KEY].items()}),
+            ('parameters', {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_PARAMETER_KEY].items()})
+        ))
         ctx[SPEC_KEY]['definition'] = definition_filename
 
     Git.add(SPEC_FILENAME)
