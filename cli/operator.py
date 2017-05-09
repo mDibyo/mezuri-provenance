@@ -4,14 +4,12 @@ from argparse import ArgumentParser
 from collections import OrderedDict
 from os.path import relpath
 
-from lib.declarations import (
-    DECLARATION_ATTR_INPUT_KEY, DECLARATION_ATTR_OUTPUT_KEY, DECLARATION_ATTR_PARAMETER_KEY
-)
+from lib.declarations import extract_component_definition
 from utilities.constructs import Version
 from utilities.git import Git
 from .utils import (
     SPEC_FILENAME, SPEC_KEY, get_project_root_by_specification,
-    component_context, component_init, extract_component_declaration,
+    component_context, component_init,
     component_commit, component_publish
 )
 
@@ -27,16 +25,23 @@ def init(_) -> int:
 
 def generate(args) -> int:
     filename = args.file if args.file is not None else DEFAULT_DEFINITION_FILE
-    dcl = extract_component_declaration(filename, DEFINITION_CLASS_REF)
-    if dcl is None:
+    definition_cls = extract_component_definition(filename, DEFINITION_CLASS_REF)
+    if definition_cls is None:
         print('Could not evaluate operator definition file {}'.format(filename))
 
     definition_filename = relpath(filename, get_project_root_by_specification())
+    io_specs, parameters = definition_cls._AbstractOperator__extract_spec()
     with component_context() as ctx:
         ctx[SPEC_KEY]['iop_declaration'] = OrderedDict((
-            ('inputs', {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_INPUT_KEY].items()}),
-            ('outputs', {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_OUTPUT_KEY].items()}),
-            ('parameters', {k: v.serialize() for k, v in dcl[DECLARATION_ATTR_PARAMETER_KEY].items()})
+            ('parameters', parameters),
+            ('io_specs', OrderedDict(
+                [(io_method, OrderedDict((
+                    ('input', OrderedDict((name, type_.serialize())
+                                          for name, type_ in io_specs[io_method]['input'])),
+                    ('output', OrderedDict((name, type_.serialize())
+                                           for name, type_ in io_specs[io_method]['output']))
+                ))) for io_method in sorted(io_specs.keys())]
+            ))
         ))
         ctx[SPEC_KEY]['definition'] = definition_filename
 

@@ -4,8 +4,8 @@ from abc import ABCMeta, abstractmethod
 from typing import Dict as _Dict, Callable
 
 
-DECLARATION_ATTR = '__mezuri_dcl__'
-DECLARATION_CREATE_FUNC_ATTR = '__mezuri_dcl_create_func__'
+PARAM_METHOD_DECLARATION_ATTR = '__mezuri_param_method__'
+IO_METHOD_DECLARATION_ATTR = '__mezuri_io_method__'
 
 
 class MezuriType(metaclass=ABCMeta):
@@ -46,7 +46,7 @@ class Dict(MezuriType):
         self.definition = definition
 
     def serialize(self):
-        return self.data_type, {k: v.serialize() for k, v in self.definition}
+        return self.data_type, {k: v.serialize() for k, v in self.definition.items()}
 
 
 class InterfaceProxy:
@@ -62,7 +62,10 @@ class InterfaceProxy:
 
 
 class AbstractIOP(metaclass=ABCMeta):
-    _attr_key = DECLARATION_ATTR
+    @property
+    @abstractmethod
+    def _attr_key(self):
+        return NotImplemented
 
     @property
     @abstractmethod
@@ -73,17 +76,13 @@ class AbstractIOP(metaclass=ABCMeta):
         self.name = name
         self.type_ = type_
 
-    @staticmethod
-    def _initialize_callable(callable_: Callable):
-        if not hasattr(callable_, DECLARATION_ATTR):
-            setattr(callable_, DECLARATION_ATTR,
-                    getattr(callable_, DECLARATION_CREATE_FUNC_ATTR)())
+    def __call__(self, method: Callable):
+        setattr(method, self._attr_key, True)
 
-    def __call__(self, callable_: Callable):
-        self._initialize_callable(callable_)
-
-        getattr(callable_, self._attr_key)[self._attr_io_key][self.name] = self.type_
-        return callable_
+        io = getattr(method, self._attr_io_key, tuple())
+        io += ((self.name, self.type_), )
+        setattr(method, self._attr_io_key, io)
+        return method
 
 DECLARATION_ATTR_INPUT_KEY = '__input__'
 DECLARATION_ATTR_OUTPUT_KEY = '__output__'
@@ -91,12 +90,28 @@ DECLARATION_ATTR_PARAMETER_KEY = '__parameter__'
 
 
 class Input(AbstractIOP):
+    _attr_key = IO_METHOD_DECLARATION_ATTR
     _attr_io_key = DECLARATION_ATTR_INPUT_KEY
 
 
 class Output(AbstractIOP):
+    _attr_key = IO_METHOD_DECLARATION_ATTR
     _attr_io_key = DECLARATION_ATTR_OUTPUT_KEY
 
 
 class Parameter(AbstractIOP):
+    _attr_key = PARAM_METHOD_DECLARATION_ATTR
     _attr_io_key = DECLARATION_ATTR_PARAMETER_KEY
+
+
+def extract_component_definition(definition_file: str, definition_class: str):
+    with open(definition_file) as f:
+        contents = f.read()
+
+    globals_ = {}
+    try:
+        exec(contents, globals_)
+    except Exception:
+        return None
+
+    return globals_.get(definition_class, None)

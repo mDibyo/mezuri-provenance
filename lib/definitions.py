@@ -1,63 +1,56 @@
 #!/usr/bin/env python3
 
-from abc import ABCMeta, abstractmethod
-from collections import OrderedDict
-from typing import TypeVar
+from abc import ABCMeta, abstractclassmethod
 
 from lib.declarations import (
-    DECLARATION_CREATE_FUNC_ATTR,
+    PARAM_METHOD_DECLARATION_ATTR, IO_METHOD_DECLARATION_ATTR,
     DECLARATION_ATTR_INPUT_KEY, DECLARATION_ATTR_OUTPUT_KEY, DECLARATION_ATTR_PARAMETER_KEY
 )
 
 
-OperatorType = TypeVar('OperatorType', bound='AbstractOperator')
-
-
-class AbstractOperator(metaclass=ABCMeta):
-    @abstractmethod
-    def __init__(
-        self,
-        **parameters: 'getattr(OperatorType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_PARAMETER_KEY]'
-    ):
+class AbstractComponent(metaclass=ABCMeta):
+    @abstractclassmethod
+    def __extract_spec(self):
         pass
 
-    @abstractmethod
-    def __call__(
-        self,
-        **inputs: 'getattr(OperatorType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_INPUT_KEY]'
-    ) -> 'getattr(OperatorType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_OUTPUT_KEY]':
-        pass
 
-setattr(AbstractOperator, DECLARATION_CREATE_FUNC_ATTR, lambda: {
-    DECLARATION_ATTR_INPUT_KEY: OrderedDict(),
-    DECLARATION_ATTR_OUTPUT_KEY: OrderedDict(),
-    DECLARATION_ATTR_PARAMETER_KEY: OrderedDict()
-})
+class AbstractOperator(AbstractComponent, metaclass=ABCMeta):
+    @classmethod
+    def __extract_spec(cls):
+        io_specs = {}
+        parameters = {}
+        for var_name, var in vars(cls).items():
+            if getattr(var, IO_METHOD_DECLARATION_ATTR, False):
+                io_specs[var_name] = {
+                    'input': getattr(var, DECLARATION_ATTR_INPUT_KEY, tuple()),
+                    'output': getattr(var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
+                }
+            elif getattr(var, PARAM_METHOD_DECLARATION_ATTR, False):
+                parameters = getattr(var, DECLARATION_ATTR_PARAMETER_KEY)
 
-
-InterfaceType = TypeVar('InterfaceType', bound='AbstractInterface')
-
-
-class AbstractInterface(metaclass=ABCMeta):
-    def __init__(
-        self,
-        **interface: 'getattr(InterfaceType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_INPUT_KEY]'
-    ) -> None:
-        pass
-
-setattr(AbstractInterface, DECLARATION_CREATE_FUNC_ATTR, lambda: {
-    DECLARATION_ATTR_INPUT_KEY: OrderedDict(),
-})
+        return io_specs, parameters
 
 
-SourceType = TypeVar('SourceType', bound='AbstractSource')
+class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
+    @classmethod
+    def __extract_spec(cls):
+        for var_name, var in vars(cls).items():
+            if getattr(var, IO_METHOD_DECLARATION_ATTR, False):
+                spec = getattr(var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
+                io_spec = {
+                    'input': spec,
+                    'output': spec
+                }
+                return io_spec
 
 
-class AbstractSource(metaclass=ABCMeta):
-    def __call__(self) -> 'getattr(SourceType, DECLARATION_ATTR_KEY)[DECLARATION_ATTR_OUTPUT_KEY]':
-        pass
-
-setattr(AbstractSource, DECLARATION_CREATE_FUNC_ATTR, lambda: {
-    DECLARATION_ATTR_OUTPUT_KEY: OrderedDict()
-})
-
+class AbstractSource(AbstractComponent, metaclass=ABCMeta):
+    @classmethod
+    def __extract_spec(cls):
+        for var_name, var in vars(cls).items():
+            if getattr(var, IO_METHOD_DECLARATION_ATTR, False):
+                spec = getattr(var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
+                io_spec = {
+                    'output': spec
+                }
+                return io_spec

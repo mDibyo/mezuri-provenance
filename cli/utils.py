@@ -6,7 +6,6 @@ import json
 import os
 from typing import Dict
 
-from lib.declarations import DECLARATION_ATTR
 from utilities import SPEC_FILENAME
 from utilities.constructs import Version, DEFAULT_VERSION, VersionTag
 from utilities.git import Git
@@ -120,8 +119,9 @@ def save_component_context(context):
                 v = str(v)
             spec_to_save[k] = v
 
+        dump = json.dumps(spec_to_save, indent=4)
         with open(context[SPEC_PATH_KEY], 'w') as f:
-            json.dump(spec_to_save, f, indent=4)
+            f.write(dump)
 
 
 @contextmanager
@@ -151,19 +151,6 @@ def component_init(spec_defaults=None):
         ctx[SPEC_PATH_KEY] = os.path.join(os.getcwd(), SPEC_FILENAME)
     Git.add(SPEC_FILENAME)
     return 0
-
-
-def extract_component_declaration(definition_file: str, definition_class: str):
-    with open(definition_file) as f:
-        contents = f.read()
-
-    globals_ = {}
-    try:
-        exec(contents, globals_)
-    except Exception:
-        return None
-
-    return getattr(globals_[definition_class], DECLARATION_ATTR)
 
 
 def component_commit(component_type: str, message: str, version: Version=None, spec_defaults=None):
