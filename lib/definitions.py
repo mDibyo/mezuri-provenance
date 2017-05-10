@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from abc import ABCMeta, abstractclassmethod, abstractmethod
+from abc import ABCMeta, abstractmethod
 import csv
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Generic, TypeVar, Sequence
 
 from lib.declarations import (
     PARAM_METHOD_DECLARATION_ATTR, IO_METHOD_DECLARATION_ATTR,
@@ -49,6 +49,23 @@ class AbstractSource(AbstractComponent, metaclass=ABCMeta):
     Class from which all Sources must be sub-classed.  It contains the
     machinery required by the mezuri CLI to generate corresponding declaration
     for the component definition.
+
+    Source must NOT take any arguments to the __init__ method.
+    Sources can define a number of output methods which must have the following
+    signature:
+    ```
+    from typing import TypeVar
+
+    from .declarations import Output
+
+    SourceReader = TypeVar('SourceReader', bound=AbstractSourceReader)
+
+    class Source(AbstractSource):
+        @Output('output1', OutputType1)
+        @Output('output2', OutputType2)
+        def method_name(self) -> SourceReader:
+            ...
+    ```    
     """
 
     @classmethod
@@ -75,7 +92,10 @@ class AbstractSource(AbstractComponent, metaclass=ABCMeta):
         return specs
 
 
-class AbstractSourceReader(metaclass=ABCMeta):
+SourceOutput = TypeVar('SourceOutput')
+
+
+class AbstractSourceReader(Generic[SourceOutput], metaclass=ABCMeta):
     """
     Class from which all SourceReaders must inherit. It contains a number of
     methods/attributes that readers must supply in order for the mezuri CLI to
@@ -114,7 +134,7 @@ class AbstractSourceReader(metaclass=ABCMeta):
         return '{}({}:{})'.format(self.__class__.__name__, self.uri, self.query)
 
     @abstractmethod
-    def read(self, query: str):
+    def read(self, query: str) -> Sequence[SourceOutput]:
         """
         Calculates and returns the output for this source based on the query.
         """
@@ -122,10 +142,9 @@ class AbstractSourceReader(metaclass=ABCMeta):
 
 
 class CSVFileReader(AbstractSourceReader):
-    uri = 'file://'  # This is set to actual file in __init__.
     query = 'read'
 
-    def __init__(self, filename, field_mapper: Optional[Callable]=None):
+    def __init__(self, filename, field_mapper: Optional[Callable[[Dict], SourceOutput]]=None):
         """
         Read a CSV file.
 
