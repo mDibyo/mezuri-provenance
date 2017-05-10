@@ -11,9 +11,7 @@ from lib.declarations import (
 
 
 class AbstractComponent(metaclass=ABCMeta):
-    @abstractclassmethod
-    def __extract_spec(self):
-        pass
+    pass
 
 
 class AbstractOperator(AbstractComponent, metaclass=ABCMeta):
@@ -47,22 +45,48 @@ class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
 
 
 class AbstractSource(AbstractComponent, metaclass=ABCMeta):
+    """
+    Class from which all Sources must be sub-classed.  It contains the
+    machinery required by the mezuri CLI to generate corresponding declaration
+    for the component definition.
+    """
+
     @classmethod
     def __extract_spec(cls):
+        """
+        Extract specifications for this source.
+
+        This method is part of the internal API and is not meant to be used
+        by end-users.
+        """
         specs = {}
+        cls_inst = cls()
         for var_name, var in vars(cls).items():
-            if getattr(var, IO_METHOD_DECLARATION_ATTR, False):
-                specs[var_name] = getattr(var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
+            if hasattr(var, '__get__'):
+                bound_var = var.__get__(cls_inst, cls)
+                if getattr(bound_var, IO_METHOD_DECLARATION_ATTR, False):
+                    reader = bound_var()
+                    specs[var_name] = {
+                        'output': getattr(bound_var, DECLARATION_ATTR_OUTPUT_KEY, tuple()),
+                        'uri': reader.uri,
+                        'query': reader.query
+                    }
 
         return specs
 
 
 class AbstractSourceReader(metaclass=ABCMeta):
+    """
+    Class from which all SourceReaders must inherit. It contains a number of
+    methods/attributes that readers must supply in order for the mezuri CLI to
+    obtain source output and generate definitions.
+    """
+
     @property
     @abstractmethod
     def uri(self):
         """
-        Stores the URi to the file/database that this source represents.  For
+        Stores the URI to the file/database that this source represents.  For
         example:
         - a CSV file source: file://relative/path/to/file
         - a MySQL database query: mysql://database
