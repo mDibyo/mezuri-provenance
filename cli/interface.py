@@ -31,7 +31,6 @@ def generate(args) -> int:
 
     definition_filename = relpath(filename, get_project_root_by_specification())
     io_spec = definition_cls._AbstractInterface__extract_spec()
-    print(io_spec)
     with component_context() as ctx:
         ctx[SPEC_KEY]['iop_declaration'] = OrderedDict(
             (name, type_.serialize()) for name, type_ in io_spec['input'])

@@ -32,14 +32,37 @@ class AbstractOperator(AbstractComponent, metaclass=ABCMeta):
 
 
 class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
+    """
+        Class from which all Interfaces must be sub-classed.  It contains the
+        machinery required by the mezuri CLI to generate corresponding declaration
+        for the component definition.
+
+        Interfaces must take all constituent data_types as Inputs to the `__init__` 
+        method as follows:
+        ```
+        from .declarations import Input
+
+        class Interface(AbstractInterface):
+            @Input('data1', DataType1)
+            @Input('data2', DataType2)
+            def __init__(self):
+                ...
+        ```
+    """
+
     @classmethod
     def __extract_spec(cls):
+        """
+        Extract specifications for this interface.
+
+        This method is part of the internal API and is not meant to be used
+        by end-users.
+        """
         for var_name, var in vars(cls).items():
             if getattr(var, IO_METHOD_DECLARATION_ATTR, False):
-                spec = getattr(var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
+                spec = getattr(var, DECLARATION_ATTR_INPUT_KEY, tuple())
                 io_spec = {
                     'input': spec,
-                    'output': spec
                 }
                 return io_spec
 
@@ -50,7 +73,7 @@ class AbstractSource(AbstractComponent, metaclass=ABCMeta):
     machinery required by the mezuri CLI to generate corresponding declaration
     for the component definition.
 
-    Source must NOT take any arguments to the __init__ method.
+    Sources must NOT take any arguments to the `__init__` method.
     Sources can define a number of output methods which must have the following
     signature:
     ```
