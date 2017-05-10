@@ -24,12 +24,11 @@ def init(_) -> int:
 
 
 def generate(args) -> int:
-    filename = args.file if args.file is not None else DEFAULT_DEFINITION_FILE
-    definition_cls = extract_component_definition(filename, DEFINITION_CLASS_REF)
+    definition_cls = extract_component_definition(args.file, DEFINITION_CLASS_REF)
     if definition_cls is None:
-        print('Could not evaluate operator definition file {}'.format(filename))
+        print('Could not evaluate operator definition file {}'.format(args.file))
 
-    definition_filename = relpath(filename, get_project_root_by_specification())
+    definition_filename = relpath(args.file, get_project_root_by_specification())
     io_specs, parameters = definition_cls._AbstractOperator__extract_spec()
     with component_context() as ctx:
         ctx[SPEC_KEY]['iop_declaration'] = OrderedDict((
@@ -74,6 +73,7 @@ def add_operator_commands(parser):
                                                       'in the specified file.')
     generate_parser.set_defaults(command=generate)
     generate_parser.add_argument('-f', '--file',
+                                 default=DEFAULT_DEFINITION_FILE,
                                  help='The operator definition file. If not provided, {} is '
                                       'assumed.'.format(DEFAULT_DEFINITION_FILE))
 
