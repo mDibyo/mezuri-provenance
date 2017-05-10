@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from typing import Dict as _Dict, Callable
 
+from utilities.registry import RegistryClient
 
 PARAM_METHOD_DECLARATION_ATTR = '__mezuri_param_method__'
 IO_METHOD_DECLARATION_ATTR = '__mezuri_io_method__'
@@ -113,13 +114,109 @@ class Dict(AbstractMezuriSerializable):
                                          for k, v in self.definition.items()))
 
 
-    def __init__(self, interface_registry: str, interface_name: str, version_str: str):
-        self.interface_registry = interface_registry
-        self.interface_name = interface_name
+class AbstractComponentProxyFactory(AbstractMezuriSerializable):
+    data_type = 'ABSTRACT_COMPONENT'
+
+    @classmethod
+    @property
+    @abstractmethod
+    def component_type(cls):
+        return NotImplemented
+
+    def __init__(self, registry_url: str, name: str, version_str: str):
+        self.registry_url = registry_url
+        self.name = name
         self.version_str = version_str
 
+        self._spec = None
+
+    def __repr__(self):
+        return '{}({}, {}, {})'.format(self.__class__.__name__, self.registry_url,
+                                       self.name, self.version_str)
+
     def serialize(self):
-        return self.data_type, (self.interface_registry, self.interface_name, self.version_str)
+        return Serialized(self.data_type, (self.registry_url, self.name, self.version_str))
+
+    @classmethod
+    def deserialize(cls, contents):
+        registry_url, name, version_str = contents
+        return cls(registry_url, name, version_str)
+
+    def _fetch_spec(self) -> Dict:
+        registry = RegistryClient(self.registry_url, self.component_type, self.name)
+        return registry.get_component_version(self.version_str)['spec']
+
+    @property
+    def spec(self) -> Dict:
+        if self._spec is None:
+            self._spec = self._fetch_spec()
+        return self._spec
+
+    @abstractmethod
+    def __call__(self, *args, **kwargs):
+        pass
+
+
+class InterfaceProxyFactory(AbstractComponentProxyFactory):
+    data_type = 'INTERFACE'
+    component_type = 'interfaces'
+
+    class InterfaceProxy():
+        def __init__(self, spec, inputs):
+            assert set(inputs.keys()) == set(self.spec['iop_declaration'].keys())
+
+            self.spec = spec
+            self.cls_name = spec['definition']['class']
+            self.inputs = inputs
+
+        def __repr__(self):
+            return '{}({})'.format(self.cls_name, ', '.join(self.inputs))
+
+        def __getattr__(self, item):
+            return self.inputs[item]
+
+    def __call__(self, **inputs):
+        return self.InterfaceProxy(self.spec, inputs)
+
+
+class OperatorProxyFactory(AbstractComponentProxyFactory):
+    data_type = 'OPERATOR'
+    component_type = 'operators'
+
+    class OperatorProxy():
+        class OperatorMethodProxy():
+            def __init__(self, cls_name, method_name, io_specs):
+                self.cls_name = cls_name
+                self.method_name = method_name
+                self._inputs = io_specs['input'].items()
+                self._outputs = io_specs['output'].items()
+
+                setattr(self, IO_METHOD_DECLARATION_ATTR, True)
+                setattr(self, DECLARATION_ATTR_INPUT_KEY, self._inputs)
+                setattr(self, DECLARATION_ATTR_OUTPUT_KEY, self._outputs)
+
+            def __repr__(self):
+                return '{}.{}({})'.format(self.cls_name, self.method_name,
+                                          ', '.join(name for name, type_ in self._inputs))
+
+            def __call__(self):
+                raise NotImplementedError
+
+        def __init__(self, spec, parameters):
+            assert set(parameters.keys()) == \
+                   set(self.spec['iop_declaration']['parameters'].keys())
+
+            self.spec = spec
+            self.cls_name = spec['definition']['class']
+            self.parameters = parameters
+
+        def __getattr__(self, item):
+            method_io_specs = self.spec['iop_declaration']['methods'].get(item, None)
+            if method_io_specs is not None:
+                return self.OperatorMethodProxy(self.cls_name, item, method_io_specs)
+
+    def __call__(self, **parameters):
+        return self.OperatorProxy(self.spec, parameters)
 
 
 class AbstractIOP(metaclass=ABCMeta):
@@ -133,7 +230,7 @@ class AbstractIOP(metaclass=ABCMeta):
     def _attr_io_key(self):
         return NotImplemented
 
-    def __init__(self, name: str, type_: MezuriBaseType or InterfaceProxy):
+    def __init__(self, name: str, type_: AbstractMezuriSerializable):
         self.name = name
         self.type_ = type_
 
@@ -141,7 +238,7 @@ class AbstractIOP(metaclass=ABCMeta):
         setattr(method, self._attr_key, True)
 
         io = getattr(method, self._attr_io_key, tuple())
-        io += ((self.name, self.type_), )
+        io = ((self.name, self.type_), ) + io
         setattr(method, self._attr_io_key, io)
         return method
 

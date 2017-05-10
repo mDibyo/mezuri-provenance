@@ -33,7 +33,7 @@ def generate(args) -> int:
     with component_context() as ctx:
         ctx[SPEC_KEY]['iop_declaration'] = OrderedDict((
             ('parameters', parameters),
-            ('io_specs', OrderedDict(
+            ('methods', OrderedDict(
                 [(io_method, OrderedDict((
                     ('input', OrderedDict((name, type_.serialize())
                                           for name, type_ in io_specs[io_method]['input'])),
