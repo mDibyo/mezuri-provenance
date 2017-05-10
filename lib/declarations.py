@@ -2,7 +2,7 @@
 
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
-from typing import Dict as _Dict, Callable
+from typing import Dict as DictType, List as ListType, Callable, Optional
 
 from utilities.registry import RegistryClient
 
@@ -46,6 +46,10 @@ class AbstractMezuriSerializable(metaclass=MezuriSerializableMeta):
     def __repr__(self):
         return NotImplemented
 
+    @abstractmethod
+    def __eq__(self, other: 'AbstractMezuriSerializable'):
+        return NotImplemented
+
 
 class MezuriBaseType(AbstractMezuriSerializable):
     data_type = 'ABSTRACT_BASE'
@@ -60,6 +64,9 @@ class MezuriBaseType(AbstractMezuriSerializable):
 
     def __repr__(self):
         return self.data_type
+
+    def __eq__(self, other):
+        return self.data_type == other.data_type
 
 
 class Int(MezuriBaseType):
@@ -94,11 +101,15 @@ class List(AbstractMezuriSerializable):
     def __repr__(self):
         return '[{}]'.format(repr(self.element_type))
 
+    def __eq__(self, other):
+        return (self.data_type == other.data_type and
+                self.element_type == other.element_type)
+
 
 class Dict(AbstractMezuriSerializable):
     data_type = 'DICT'
 
-    def __init__(self, definition: _Dict[str, AbstractMezuriSerializable]):
+    def __init__(self, definition: DictType[str, AbstractMezuriSerializable]):
         self.definition = definition
 
     def serialize(self):
@@ -106,12 +117,16 @@ class Dict(AbstractMezuriSerializable):
                           {k: v.serialize() for k, v in self.definition.items()})
 
     @classmethod
-    def deserialize(cls, contents: _Dict[str, Serialized]):
+    def deserialize(cls, contents: DictType[str, Serialized]):
         return cls({k: get_deserialized(c) for k, c in contents.items()})
 
     def __repr__(self):
         return '{{{}}}'.format(', '.join('{}: {}'.format(k, repr(v))
                                          for k, v in self.definition.items()))
+
+    def __eq__(self, other):
+        return (self.data_type == other.data_type and
+                self.definition == other.definition)
 
 
 class AbstractComponentProxyFactory(AbstractMezuriSerializable):
@@ -133,6 +148,12 @@ class AbstractComponentProxyFactory(AbstractMezuriSerializable):
     def __repr__(self):
         return '{}({}, {}, {})'.format(self.__class__.__name__, self.registry_url,
                                        self.name, self.version_str)
+
+    def __eq__(self, other):
+        return (self.data_type == other.data_type and
+                self.registry_url == other.registry_url and
+                self.name == other.name and
+                self.version_str == other.version_str)
 
     def serialize(self):
         return Serialized(self.data_type, (self.registry_url, self.name, self.version_str))
