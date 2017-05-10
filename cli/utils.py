@@ -178,7 +178,7 @@ def component_commit(component_type: str, message: str, version: Version=None, s
 
         spec['version'] = current_version
 
-    Git.add(spec['definition'])
+    Git.add(spec['definition']['file'])
     Git.commit(message)
     Git.tag.create(str(version_tag), message)
     return 0

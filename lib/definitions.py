@@ -28,7 +28,7 @@ class AbstractOperator(AbstractComponent, metaclass=ABCMeta):
             elif getattr(var, PARAM_METHOD_DECLARATION_ATTR, False):
                 parameters = getattr(var, DECLARATION_ATTR_PARAMETER_KEY)
 
-        return io_specs, parameters
+        return cls.__name__, io_specs, parameters
 
 
 class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
@@ -64,7 +64,7 @@ class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
                 io_spec = {
                     'input': spec,
                 }
-                return io_spec
+                return cls.__name__, io_spec
 
 
 class AbstractSource(AbstractComponent, metaclass=ABCMeta):
@@ -112,7 +112,7 @@ class AbstractSource(AbstractComponent, metaclass=ABCMeta):
                         'query': reader.query
                     }
 
-        return specs
+        return cls.__name__, specs
 
 
 SourceOutput = TypeVar('SourceOutput')

@@ -29,7 +29,7 @@ def generate(args) -> int:
         print('Could not evaluate operator definition file {}'.format(args.file))
 
     definition_filename = relpath(args.file, get_project_root_by_specification())
-    io_specs = definition_cls._AbstractSource__extract_spec()
+    cls_name, io_specs = definition_cls._AbstractSource__extract_spec()
     with component_context() as ctx:
         ctx[SPEC_KEY]['iop_declaration'] = OrderedDict((method, OrderedDict((
             ('uri', io_specs[method]['uri']),
@@ -37,7 +37,10 @@ def generate(args) -> int:
             ('output', OrderedDict((name, type_.serialize())
                                    for name, type_ in io_specs[method]['output']))
         ))) for method in sorted(io_specs.keys()))
-        ctx[SPEC_KEY]['definition'] = definition_filename
+        ctx[SPEC_KEY]['definition'] = OrderedDict((
+            ('file', definition_filename),
+            ('class', cls_name)
+        ))
 
     Git.add(SPEC_FILENAME)
     Git.add(definition_filename)

@@ -30,11 +30,14 @@ def generate(args) -> int:
         print('Could not evaluate interface definition file {}'.format(filename))
 
     definition_filename = relpath(filename, get_project_root_by_specification())
-    io_spec = definition_cls._AbstractInterface__extract_spec()
+    cls_name, io_spec = definition_cls._AbstractInterface__extract_spec()
     with component_context() as ctx:
         ctx[SPEC_KEY]['iop_declaration'] = OrderedDict(
             (name, type_.serialize()) for name, type_ in io_spec['input'])
-        ctx[SPEC_KEY]['definition'] = definition_filename
+        ctx[SPEC_KEY]['definition'] = OrderedDict((
+            ('file', definition_filename),
+            ('class', cls_name)
+        ))
 
     Git.add(SPEC_FILENAME)
     Git.add(definition_filename)
