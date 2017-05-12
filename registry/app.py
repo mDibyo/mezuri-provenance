@@ -4,6 +4,7 @@ from flask import Flask, abort, make_response, jsonify
 from flask_restful import Api, Resource, reqparse, fields, marshal
 import json
 
+from registry.db import db
 from utilities import temporary_dir, working_dir, SPEC_FILENAME
 from utilities.git import Git
 
@@ -37,7 +38,7 @@ def generate_component_api(api: Api, component_type: str,
         'gitRemoteUrl': fields.String,
         'versions': fields.List(fields.String),
     }
-    components = {}
+    component_collection = db[component_list_endpoint]
 
     class ComponentListAPI(Resource):
         def __init__(self):
@@ -52,12 +53,12 @@ def generate_component_api(api: Api, component_type: str,
 
         def get(self):
             return {'components': [marshal(component, component_for_list_fields)
-                                   for component in components.values()]}
+                                   for component in component_collection.find()]}
 
         def post(self):
             args = self.parser.parse_args()
 
-            if args.name in components:
+            if component_collection.find_one({'name': args.name}) is not None:
                 abort(make_response(jsonify({'error': 'Component already exists'}), 409))
 
             component = {
@@ -65,7 +66,7 @@ def generate_component_api(api: Api, component_type: str,
                 'gitRemoteUrl': args.gitRemoteUrl,
                 'versions': []
             }
-            components[args.name] = component
+            component_collection.insert_one(component)
 
             return {'component': marshal(component, component_fields)}, 201
 
@@ -79,10 +80,11 @@ def generate_component_api(api: Api, component_type: str,
                                      location='json')
 
         def get(self, name: str):
-            if name not in components:
+            component = component_collection.find_one({'name': name})
+            if component is None:
                 abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
 
-            return {'component': marshal(components[name], component_fields)}
+            return {'component': marshal(component, component_fields)}
 
     api.add_resource(ComponentAPI, '/{}/<string:name>'.format(component_type), endpoint=component_endpoint)
 
@@ -98,7 +100,7 @@ def generate_component_api(api: Api, component_type: str,
         'component_name': fields.String,
         'spec': fields.Raw
     }
-    component_versions = []
+    version_collection = db[version_list_endpoint]
 
     class ComponentVersionListAPI(Resource):
         def __init__(self):
@@ -114,15 +116,14 @@ def generate_component_api(api: Api, component_type: str,
                                      location='json')
 
         def get(self, component_name):
-            if component_name not in components:
+            if component_collection.find_one({'name': component_name}) is None:
                 abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
 
             return {'versions': [marshal(version, component_version_for_list_fields)
-                                 for version in component_versions
-                                 if version['component_name'] == component_name]}
+                                 for version in version_collection.find({'component_name': component_name})]}
 
         def post(self, component_name):
-            component = components.get(component_name, None)
+            component = component_collection.find_one({'name': component_name})
             if component is None:
                 abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
 
@@ -138,8 +139,9 @@ def generate_component_api(api: Api, component_type: str,
                 'component_name': component_name,
                 'spec': spec
             }
-            component_versions.append(component_version)
+            version_collection.insert_one(component_version)
             component['versions'].append(args.version)
+            component_collection.replace_one({'_id': component['_id']}, component)
 
             return {'version': marshal(component_version, component_version_fields)}, 201
 
@@ -149,15 +151,16 @@ def generate_component_api(api: Api, component_type: str,
 
     class ComponentVersionAPI(Resource):
         def get(self, component_name, version):
-            if component_name not in components:
+            if component_collection.find_one({'name': component_name}) is None:
                 abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
 
-            for component_version in component_versions:
-                if component_version['component_name'] == component_name:
-                    if component_version['version'] == version:
-                        return {
-                            'component_version': marshal(component_version, component_version_fields)
-                        }
+            component_version = version_collection.find_one({
+                'component_name': component_name,
+                'version': version
+            })
+
+            if component_version is None:
+                return {'component_version': marshal(component_version, component_version_fields)}
 
             abort(make_response(jsonify({'error': 'Component version does not exist'}), 404))
 
