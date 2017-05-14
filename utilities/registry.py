@@ -77,7 +77,7 @@ class RegistryClient:
             'version_hash': version_hash
         }, timeout=None)
         if response.status_code == requests.codes.created:
-            return response.json()['version']
+            return response.json()['componentVersion']
         raise RegistryError('Component version {} could not be added: {}'.format(
             version, response.json()['error']))
 

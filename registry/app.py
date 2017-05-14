@@ -97,7 +97,7 @@ def generate_component_api(api: Api, component_type: str,
         'version': fields.String,
         'uri': fields.Url(endpoint=version_endpoint, absolute=True),
         'hash': fields.String,
-        'component_name': fields.String,
+        'componentName': fields.String(attribute='component_name'),
         'spec': fields.Raw
     }
     version_collection = db[version_list_endpoint]
@@ -143,7 +143,7 @@ def generate_component_api(api: Api, component_type: str,
             component['versions'].append(args.version)
             component_collection.replace_one({'_id': component['_id']}, component)
 
-            return {'version': marshal(component_version, component_version_fields)}, 201
+            return {'componentVersion': marshal(component_version, component_version_fields)}, 201
 
     api.add_resource(ComponentVersionListAPI,
                      '/{}/<component_name>/versions'.format(component_type),
@@ -159,8 +159,8 @@ def generate_component_api(api: Api, component_type: str,
                 'version': version
             })
 
-            if component_version is None:
-                return {'component_version': marshal(component_version, component_version_fields)}
+            if component_version is not None:
+                return {'componentVersion': marshal(component_version, component_version_fields)}
 
             abort(make_response(jsonify({'error': 'Component version does not exist'}), 404))
 
@@ -178,6 +178,12 @@ generate_component_api(api=registry_api, component_type='interfaces',
 generate_component_api(api=registry_api, component_type='sources',
                        component_endpoint='source', component_list_endpoint='sources',
                        version_endpoint='source_version', version_list_endpoint='source_versions')
+
+
+@registry.after_request
+def apply_caching(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
 
 if __name__ == '__main__':
