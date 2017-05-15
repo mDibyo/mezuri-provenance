@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 from flask import Flask, abort, make_response, jsonify
 from flask_restful import Api, Resource, reqparse, fields, marshal
 import json
@@ -22,7 +24,49 @@ def fetch_remote_spec(remote_url: str, version_hash: str, version_tag: str):
                 abort(make_response(jsonify({'error': 'Remote repository version does not match'}), 400))
             Git.checkout(version_hash)
             with open(SPEC_FILENAME) as f:
-                return json.load(f)
+                return json.load(f, object_pairs_hook=OrderedDict)
+
+
+class ResponseFields(object):
+    @property
+    @abstractmethod
+    def _version_endpoint(self):
+        return NotImplemented
+
+    def component_version_fields(self):
+        return {
+            'version': fields.String,
+            'uri': fields.Url(endpoint=self._version_endpoint, absolute=True),
+            'hash': fields.String,
+            'componentName': fields.String(attribute='component_name'),
+            'spec': fields.Raw
+        }
+
+
+class AbstractComponentVersionAPI(Resource, ResponseFields):
+    @property
+    @abstractmethod
+    def component_collection(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def version_collection(self):
+        return NotImplemented
+
+    def get(self, component_name, version):
+        if self.component_collection.find_one({'name': component_name}) is None:
+            abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
+
+        component_version = self.version_collection.find_one({
+            'component_name': component_name,
+            'version': version
+        })
+
+        if component_version is not None:
+            return {'componentVersion': marshal(component_version, self.component_version_fields())}
+
+        abort(make_response(jsonify({'error': 'Component version does not exist'}), 404))
 
 
 def generate_component_api(api: Api, component_type: str,
@@ -93,16 +137,11 @@ def generate_component_api(api: Api, component_type: str,
         'uri': fields.Url(endpoint=version_endpoint, absolute=True),
         'hash': fields.String
     }
-    component_version_fields = {
-        'version': fields.String,
-        'uri': fields.Url(endpoint=version_endpoint, absolute=True),
-        'hash': fields.String,
-        'componentName': fields.String(attribute='component_name'),
-        'spec': fields.Raw
-    }
     version_collection = db[version_list_endpoint]
 
-    class ComponentVersionListAPI(Resource):
+    class ComponentVersionListAPI(Resource, ResponseFields):
+        _version_endpoint = version_endpoint
+
         def __init__(self):
             self.parser = reqparse.RequestParser()
             self.parser.add_argument('version', type=str, required=True,
@@ -143,30 +182,56 @@ def generate_component_api(api: Api, component_type: str,
             component['versions'].append(args.version)
             component_collection.replace_one({'_id': component['_id']}, component)
 
-            return {'componentVersion': marshal(component_version, component_version_fields)}, 201
+            return {'componentVersion': marshal(component_version, self.component_version_fields)}, 201
 
     api.add_resource(ComponentVersionListAPI,
                      '/{}/<component_name>/versions'.format(component_type),
                      endpoint=version_list_endpoint)
 
-    class ComponentVersionAPI(Resource):
-        def get(self, component_name, version):
-            if component_collection.find_one({'name': component_name}) is None:
-                abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
 
-            component_version = version_collection.find_one({
-                'component_name': component_name,
-                'version': version
-            })
+class OperatorVersionAPI(AbstractComponentVersionAPI):
+    _version_endpoint = 'operator_version'
 
-            if component_version is not None:
-                return {'componentVersion': marshal(component_version, component_version_fields)}
+    component_collection = db['operators']
+    version_collection = db['operator_versions']
 
-            abort(make_response(jsonify({'error': 'Component version does not exist'}), 404))
+registry_api.add_resource(OperatorVersionAPI,
+                          '/operators/<component_name>/versions/<version>',
+                          endpoint='operator_version')
 
-    api.add_resource(ComponentVersionAPI,
-                     '/{}/<component_name>/versions/<version>'.format(component_type),
-                     endpoint=version_endpoint)
+
+class SourceVersionAPI(AbstractComponentVersionAPI):
+    _version_endpoint = 'source_version'
+
+    component_collection = db['sources']
+    version_collection = db['source_versions']
+
+
+registry_api.add_resource(SourceVersionAPI,
+                          '/sources/<component_name>/versions/<version>',
+                          endpoint='source_version')
+
+
+class InterfaceVersionAPI(AbstractComponentVersionAPI):
+    _version_endpoint = 'interface_version'
+
+    component_collection = db['interfaces']
+    version_collection = db['interface_versions']
+
+
+registry_api.add_resource(InterfaceVersionAPI,
+                          '/interfaces/<component_name>/versions/<version>',
+                          endpoint='interface_version')
+
+
+class InterfaceVersionDependents(Resource):
+    def get(self):
+        pass
+
+
+registry_api.add_resource(InterfaceVersionDependents,
+                          '/interfaces/<component_name>/versions/<version>/dependents',
+                          endpoint='interface_version_dependents')
 
 
 generate_component_api(api=registry_api, component_type='operators',
