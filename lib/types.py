@@ -37,6 +37,11 @@ class AbstractMezuriSerializable(metaclass=MezuriSerializableMeta):
     def deserialize(cls, contents):
         return NotImplemented
 
+    @property
+    @abstractmethod
+    def dependencies(self):
+        return NotImplemented
+
     @abstractmethod
     def __repr__(self):
         return NotImplemented
@@ -49,13 +54,16 @@ class AbstractMezuriSerializable(metaclass=MezuriSerializableMeta):
 class MezuriBaseType(AbstractMezuriSerializable):
     data_type = 'ABSTRACT_BASE'
 
-    @classmethod
-    def serialize(cls):
-        return Serialized(cls.data_type, None)
+    def serialize(self):
+        return Serialized(self.data_type, None)
 
     @classmethod
     def deserialize(cls, _):
         return cls()
+
+    @property
+    def dependencies(self):
+        return set()
 
     def __repr__(self):
         return self.data_type
@@ -97,6 +105,10 @@ class List(AbstractMezuriSerializable):
     def deserialize(cls, contents: Serialized):
         return cls(get_deserialized(contents))
 
+    @property
+    def dependencies(self):
+        return self.element_type.dependencies
+
     def __repr__(self):
         return '[{}]'.format(repr(self.element_type))
 
@@ -118,6 +130,13 @@ class Dict(AbstractMezuriSerializable):
     @classmethod
     def deserialize(cls, contents: DictType[str, Serialized]):
         return cls({k: get_deserialized(c) for k, c in contents.items()})
+
+    @property
+    def dependencies(self):
+        deps = set()
+        for c in self.definition.values():
+            deps |= c.dependencies
+        return deps
 
     def __repr__(self):
         return '{{{}}}'.format(', '.join('{}: {}'.format(k, repr(v))

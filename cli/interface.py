@@ -5,10 +5,13 @@ from collections import OrderedDict
 from os.path import relpath
 
 from lib.declarations import extract_component_definition
+from utilities import (
+    SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
+    SPEC_DEPENDENCIES_KEY, SPEC_DEFINITION_KEY, SPEC_FILENAME
+)
 from utilities.constructs import Version
 from utilities.git import Git
 from .utils import (
-    SPEC_FILENAME, SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
     get_project_root_by_specification,
     component_context, component_init,
     component_commit, component_publish
@@ -31,11 +34,12 @@ def generate(args) -> int:
         print('Could not evaluate interface definition file {}'.format(filename))
 
     definition_filename = relpath(filename, get_project_root_by_specification())
-    cls_name, io_spec = definition_cls._AbstractInterface__extract_spec()
+    cls_name, io_spec, deps = definition_cls._AbstractInterface__extract_spec()
     with component_context('interfaces') as ctx:
         ctx[SPEC_KEY][SPEC_IOP_DECLARATION_KEY] = OrderedDict(
             (name, type_.serialize()) for name, type_ in io_spec['input'])
-        ctx[SPEC_KEY]['definition'] = OrderedDict((
+        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.key for d in deps)
+        ctx[SPEC_KEY][SPEC_DEFINITION_KEY] = OrderedDict((
             ('file', definition_filename),
             ('class', cls_name)
         ))

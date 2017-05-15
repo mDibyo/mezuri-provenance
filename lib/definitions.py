@@ -2,6 +2,7 @@
 
 from abc import ABCMeta, abstractmethod
 import csv
+from itertools import chain
 from typing import Optional, Callable, Dict, Generic, TypeVar, Sequence
 
 from lib.declarations import (
@@ -16,19 +17,25 @@ class AbstractComponent(metaclass=ABCMeta):
 
 class AbstractOperator(AbstractComponent, metaclass=ABCMeta):
     @classmethod
-    def __extract_spec(cls):
+    def __extract_spec_and_dependencies(cls):
         io_specs = {}
-        parameters = {}
+        param_spec = {}
+        dependencies = set()
         for var_name, var in vars(cls).items():
             if getattr(var, IO_METHOD_DECLARATION_ATTR, False):
+                input_ = getattr(var, DECLARATION_ATTR_INPUT_KEY, tuple())
+                output = getattr(var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
                 io_specs[var_name] = {
-                    'input': getattr(var, DECLARATION_ATTR_INPUT_KEY, tuple()),
-                    'output': getattr(var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
+                    'input': input_,
+                    'output': output
                 }
-            elif getattr(var, PARAM_METHOD_DECLARATION_ATTR, False):
-                parameters = getattr(var, DECLARATION_ATTR_PARAMETER_KEY)
+                for _, type_ in chain(input_, output):
+                    dependencies |= type_.dependencies
 
-        return cls.__name__, io_specs, parameters
+            elif getattr(var, PARAM_METHOD_DECLARATION_ATTR, False):
+                param_spec = getattr(var, DECLARATION_ATTR_PARAMETER_KEY)
+
+        return cls.__name__, io_specs, param_spec, dependencies
 
 
 class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
@@ -51,7 +58,7 @@ class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
     """
 
     @classmethod
-    def __extract_spec(cls):
+    def __extract_spec_and_dependencies(cls):
         """
         Extract specifications for this interface.
 
@@ -60,11 +67,15 @@ class AbstractInterface(AbstractComponent, metaclass=ABCMeta):
         """
         for var_name, var in vars(cls).items():
             if getattr(var, IO_METHOD_DECLARATION_ATTR, False):
-                spec = getattr(var, DECLARATION_ATTR_INPUT_KEY, tuple())
+                input_ = getattr(var, DECLARATION_ATTR_INPUT_KEY, tuple())
                 io_spec = {
-                    'input': spec,
+                    'input': input_,
                 }
-                return cls.__name__, io_spec
+
+                dependencies = set()
+                for _, type_ in input_:
+                    dependencies |= type_.dependencies
+                return cls.__name__, io_spec, dependencies
 
 
 class AbstractSource(AbstractComponent, metaclass=ABCMeta):
@@ -92,7 +103,7 @@ class AbstractSource(AbstractComponent, metaclass=ABCMeta):
     """
 
     @classmethod
-    def __extract_spec(cls):
+    def __extract_spec_and_dependencies(cls):
         """
         Extract specifications for this source.
 
@@ -100,19 +111,24 @@ class AbstractSource(AbstractComponent, metaclass=ABCMeta):
         by end-users.
         """
         specs = {}
+        dependencies = set()
         cls_inst = cls()
         for var_name, var in vars(cls).items():
             if hasattr(var, '__get__'):
                 bound_var = var.__get__(cls_inst, cls)
                 if getattr(bound_var, IO_METHOD_DECLARATION_ATTR, False):
+                    output = getattr(bound_var, DECLARATION_ATTR_OUTPUT_KEY, tuple())
                     reader = bound_var()
                     specs[var_name] = {
-                        'output': getattr(bound_var, DECLARATION_ATTR_OUTPUT_KEY, tuple()),
+                        'output': output,
                         'uri': reader.uri,
                         'query': reader.query
                     }
 
-        return cls.__name__, specs
+                    for _, _type in output:
+                        dependencies |= _type
+
+        return cls.__name__, specs, dependencies
 
 
 SourceOutput = TypeVar('SourceOutput')

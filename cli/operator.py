@@ -5,10 +5,13 @@ from collections import OrderedDict
 from os.path import relpath
 
 from lib.declarations import extract_component_definition
+from utilities import (
+    SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
+    SPEC_DEPENDENCIES_KEY, SPEC_DEFINITION_KEY, SPEC_FILENAME
+)
 from utilities.constructs import Version
 from utilities.git import Git
 from .utils import (
-    SPEC_FILENAME, SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
     get_project_root_by_specification,
     component_context, component_init,
     component_commit, component_publish
@@ -30,10 +33,10 @@ def generate(args) -> int:
         print('Could not evaluate operator definition file {}'.format(args.file))
 
     definition_filename = relpath(args.file, get_project_root_by_specification())
-    cls_name, io_specs, parameters = definition_cls._AbstractOperator__extract_spec()
+    cls_name, io_specs, param_spec, deps = definition_cls._AbstractOperator__extract_spec_and_dependencies()
     with component_context('operators') as ctx:
         ctx[SPEC_KEY][SPEC_IOP_DECLARATION_KEY] = OrderedDict((
-            ('parameters', parameters),
+            ('parameters', param_spec),
             ('methods', OrderedDict(
                 [(io_method, OrderedDict((
                     ('input', OrderedDict((name, type_.serialize())
@@ -43,7 +46,8 @@ def generate(args) -> int:
                 ))) for io_method in sorted(io_specs.keys())]
             ))
         ))
-        ctx[SPEC_KEY]['definition'] = OrderedDict((
+        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.key for d in deps)
+        ctx[SPEC_KEY][SPEC_DEFINITION_KEY] = OrderedDict((
             ('file', definition_filename),
             ('class', cls_name)
         ))

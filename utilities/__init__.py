@@ -11,6 +11,8 @@ SPEC_FILENAME = 'specification.json'
 SPEC_KEY = 'spec'
 SPEC_PATH_KEY = 'specPath'
 SPEC_IOP_DECLARATION_KEY = 'iopDeclaration'
+SPEC_DEPENDENCIES_KEY = 'dependencies'
+SPEC_DEFINITION_KEY = 'definition'
 
 
 @contextmanager
