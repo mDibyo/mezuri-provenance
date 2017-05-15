@@ -8,7 +8,8 @@ from lib.declarations import extract_component_definition
 from utilities.constructs import Version
 from utilities.git import Git
 from .utils import (
-    SPEC_FILENAME, SPEC_KEY, get_project_root_by_specification,
+    SPEC_FILENAME, SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
+    get_project_root_by_specification,
     component_context, component_init,
     component_commit, component_publish
 )
@@ -20,7 +21,7 @@ DEFINITION_CLASS_REF = '__mezuri_operator__'
 
 
 def init(_) -> int:
-    return component_init()
+    return component_init('operators')
 
 
 def generate(args) -> int:
@@ -30,8 +31,8 @@ def generate(args) -> int:
 
     definition_filename = relpath(args.file, get_project_root_by_specification())
     cls_name, io_specs, parameters = definition_cls._AbstractOperator__extract_spec()
-    with component_context() as ctx:
-        ctx[SPEC_KEY]['iop_declaration'] = OrderedDict((
+    with component_context('operators') as ctx:
+        ctx[SPEC_KEY][SPEC_IOP_DECLARATION_KEY] = OrderedDict((
             ('parameters', parameters),
             ('methods', OrderedDict(
                 [(io_method, OrderedDict((

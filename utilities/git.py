@@ -106,7 +106,6 @@ class Git:
                                               '-l',
                                               '-n',
                                               name]).decode()
-            print(name, result)
             return ' '.join(result.split(' ')[1:])
 
     tag = GitTag

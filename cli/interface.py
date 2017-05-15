@@ -8,7 +8,8 @@ from lib.declarations import extract_component_definition
 from utilities.constructs import Version
 from utilities.git import Git
 from .utils import (
-    SPEC_FILENAME, SPEC_KEY, get_project_root_by_specification,
+    SPEC_FILENAME, SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
+    get_project_root_by_specification,
     component_context, component_init,
     component_commit, component_publish
 )
@@ -20,7 +21,7 @@ DEFINITION_CLASS_REF = '__mezuri_interface__'
 
 
 def init(_):
-    return component_init()
+    return component_init('interfaces')
 
 
 def generate(args) -> int:
@@ -31,8 +32,8 @@ def generate(args) -> int:
 
     definition_filename = relpath(filename, get_project_root_by_specification())
     cls_name, io_spec = definition_cls._AbstractInterface__extract_spec()
-    with component_context() as ctx:
-        ctx[SPEC_KEY]['iop_declaration'] = OrderedDict(
+    with component_context('interfaces') as ctx:
+        ctx[SPEC_KEY][SPEC_IOP_DECLARATION_KEY] = OrderedDict(
             (name, type_.serialize()) for name, type_ in io_spec['input'])
         ctx[SPEC_KEY]['definition'] = OrderedDict((
             ('file', definition_filename),
@@ -45,11 +46,11 @@ def generate(args) -> int:
 
 
 def commit(args):
-    return component_commit('interface', args.message, Version(args.version) if args.version else None)
+    return component_commit('interfaces', args.message, Version(args.version) if args.version else None)
 
 
 def publish(_):
-    return component_publish('interface')
+    return component_publish('interfaces')
 
 
 def add_interface_commands(parser):

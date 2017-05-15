@@ -8,7 +8,8 @@ from lib.declarations import extract_component_definition
 from utilities.constructs import Version
 from utilities.git import Git
 from .utils import (
-    SPEC_FILENAME, SPEC_KEY, get_project_root_by_specification,
+    SPEC_FILENAME, SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
+    get_project_root_by_specification,
     component_context, component_init,
     component_commit, component_publish
 )
@@ -20,7 +21,7 @@ DEFINITION_CLASS_REF = '__mezuri_source__'
 
 
 def init(_):
-    return component_init()
+    return component_init('sources')
 
 
 def generate(args) -> int:
@@ -30,8 +31,8 @@ def generate(args) -> int:
 
     definition_filename = relpath(args.file, get_project_root_by_specification())
     cls_name, io_specs = definition_cls._AbstractSource__extract_spec()
-    with component_context() as ctx:
-        ctx[SPEC_KEY]['iop_declaration'] = OrderedDict((method, OrderedDict((
+    with component_context('sources') as ctx:
+        ctx[SPEC_KEY][SPEC_IOP_DECLARATION_KEY] = OrderedDict((method, OrderedDict((
             ('uri', io_specs[method]['uri']),
             ('query', io_specs[method]['query']),
             ('output', OrderedDict((name, type_.serialize())
@@ -48,11 +49,11 @@ def generate(args) -> int:
 
 
 def commit(args):
-    return component_commit('source', args.message, Version(args.version) if args.version else None)
+    return component_commit('sources', args.message, Version(args.version) if args.version else None)
 
 
-def publish():
-    return component_publish('source')
+def publish(_):
+    return component_publish('sources')
 
 
 def add_source_commands(parser):

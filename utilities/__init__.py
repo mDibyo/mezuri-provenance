@@ -8,6 +8,10 @@ from tempfile import mkdtemp
 
 SPEC_FILENAME = 'specification.json'
 
+SPEC_KEY = 'spec'
+SPEC_PATH_KEY = 'specPath'
+SPEC_IOP_DECLARATION_KEY = 'iopDeclaration'
+
 
 @contextmanager
 def temporary_dir(delete :bool=True):

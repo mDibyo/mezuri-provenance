@@ -6,7 +6,7 @@ import json
 import os
 from typing import Dict
 
-from utilities import SPEC_FILENAME
+from utilities import SPEC_FILENAME, SPEC_KEY, SPEC_PATH_KEY, SPEC_IOP_DECLARATION_KEY
 from utilities.constructs import Version, DEFAULT_VERSION, VersionTag
 from utilities.git import Git
 from utilities.registry import RegistryClient, RegistryError
@@ -19,6 +19,7 @@ specification.json format:
     "name": <component name>,
     "description": <component description>,
     "version": "0.0.0",
+    "componentType": <component-type>,
     "publish": {
         "remote": {
             "name": <remote name>,
@@ -28,18 +29,19 @@ specification.json format:
     }
 }
 """
-SPEC_KEY = 'spec'
-SPEC_PATH_KEY = 'specPath'
 
 DEFAULT_REGISTRY = 'http://registry.mezuri.org'
 
 TAG_NAME_FORMAT = 'mezuri/{component_type}/{version}'
 
-component_spec_defaults = OrderedDict((
-    ('name', None),
-    ('description', None),
-    ('version', DEFAULT_VERSION)
-))
+
+def component_spec_defaults(component_type):
+    return OrderedDict((
+        ('name', None),
+        ('componentType', component_type),
+        ('description', None),
+        ('version', DEFAULT_VERSION),
+    ))
 
 
 def input_name() -> str:
@@ -97,8 +99,8 @@ def specification():
     return spec, filename
 
 
-def calculate_component_context(spec_defaults=None):
-    spec = component_spec_defaults.copy()
+def calculate_component_context(component_type, spec_defaults=None):
+    spec = component_spec_defaults(component_type)
     if spec_defaults is not None:
         spec.update(spec_defaults)
     context = {SPEC_KEY: spec}
@@ -125,16 +127,16 @@ def save_component_context(context):
 
 
 @contextmanager
-def component_context(spec_defaults=None):
-    ctx = calculate_component_context(spec_defaults)
+def component_context(component_type: str, spec_defaults=None):
+    ctx = calculate_component_context(component_type, spec_defaults)
     try:
         yield ctx
     finally:
         save_component_context(ctx)
 
 
-def component_init(spec_defaults=None):
-    with component_context(spec_defaults) as ctx:
+def component_init(component_type: str, spec_defaults=None):
+    with component_context(component_type, spec_defaults) as ctx:
         if SPEC_PATH_KEY in ctx:
             # TODO(dibyo): Support initializing/re-initializing from passed in
             # JSON-file
@@ -154,7 +156,7 @@ def component_init(spec_defaults=None):
 
 
 def component_commit(component_type: str, message: str, version: Version=None, spec_defaults=None):
-    with component_context(spec_defaults) as ctx:
+    with component_context(component_type, spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
             print('Component not initialized.')
             return 1
@@ -162,7 +164,7 @@ def component_commit(component_type: str, message: str, version: Version=None, s
         spec = ctx[SPEC_KEY]
 
         # Check if IOP declaration has been added.
-        if 'iop_declaration' not in spec:
+        if SPEC_IOP_DECLARATION_KEY not in spec:
             print('Component IOP declaration not added.')
             return 1
 
@@ -191,7 +193,7 @@ def component_publish(component_type: str, spec_defaults=None):
         return 1
     tag_to_publish = max(VersionTag.parse(tag) for tag in tags)
 
-    with component_context(spec_defaults) as ctx:
+    with component_context(component_type, spec_defaults) as ctx:
         if SPEC_PATH_KEY not in ctx:
             print('Component in not initialized.')
             return 1
