@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from collections import OrderedDict
 from flask import Flask, abort, make_response, jsonify
 from flask_restful import Api, Resource, reqparse, fields, marshal
@@ -27,23 +27,12 @@ def fetch_remote_spec(remote_url: str, version_hash: str, version_tag: str):
                 return json.load(f, object_pairs_hook=OrderedDict)
 
 
-class ResponseFields(object):
+class ComponentVersionUtils(object):
     @property
     @abstractmethod
-    def _version_endpoint(self):
+    def version_endpoint(self):
         return NotImplemented
 
-    def component_version_fields(self):
-        return {
-            'version': fields.String,
-            'uri': fields.Url(endpoint=self._version_endpoint, absolute=True),
-            'hash': fields.String,
-            'componentName': fields.String(attribute='component_name'),
-            'spec': fields.Raw
-        }
-
-
-class AbstractComponentVersionAPI(Resource, ResponseFields):
     @property
     @abstractmethod
     def component_collection(self):
@@ -54,6 +43,26 @@ class AbstractComponentVersionAPI(Resource, ResponseFields):
     def version_collection(self):
         return NotImplemented
 
+    @property
+    def component_version_fields(self):
+        return {
+            'version': fields.String,
+            'uri': fields.Url(endpoint=self.version_endpoint, absolute=True),
+            'hash': fields.String,
+            'componentName': fields.String(attribute='component_name'),
+            'spec': fields.Raw
+        }
+
+    @property
+    def component_version_for_list_fields(self):
+        return {
+            'version': fields.String,
+            'uri': fields.Url(endpoint=self.version_endpoint, absolute=True),
+            'hash': fields.String
+        }
+
+
+class AbstractComponentVersionAPI(Resource, ComponentVersionUtils):
     def get(self, component_name, version):
         if self.component_collection.find_one({'name': component_name}) is None:
             abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
@@ -64,14 +73,57 @@ class AbstractComponentVersionAPI(Resource, ResponseFields):
         })
 
         if component_version is not None:
-            return {'componentVersion': marshal(component_version, self.component_version_fields())}
+            return {'componentVersion': marshal(component_version, self.component_version_fields)}
 
         abort(make_response(jsonify({'error': 'Component version does not exist'}), 404))
 
 
+class AbstractComponentVersionListAPI(Resource, ComponentVersionUtils):
+    def __init__(self):
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument('version', type=str, required=True,
+                                 help='Version to be published not provided',
+                                 location='json')
+        self.parser.add_argument('version_tag', type=str, required=True,
+                                 help='Version tag not provided',
+                                 location='json')
+        self.parser.add_argument('version_hash', type=str, required=True,
+                                 help='Version hash not provided',
+                                 location='json')
+
+    def get(self, component_name):
+        if self.component_collection.find_one({'name': component_name}) is None:
+            abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
+
+        return {'versions': [marshal(version, self.component_version_for_list_fields)
+                             for version in self.version_collection.find({'component_name': component_name})]}
+
+    def post(self, component_name):
+        component = self.component_collection.find_one({'name': component_name})
+        if component is None:
+            abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
+
+        args = self.parser.parse_args()
+        if args.version in component['versions']:
+            abort(make_response(jsonify({'error': 'Component version already exists'}), 409))
+
+        # TODO (dibyo): Fetch spec from git repository for specific version.
+        spec = fetch_remote_spec(component['gitRemoteUrl'], args.version_hash, args.version_tag)
+        component_version = {
+            'version': args.version,
+            'hash': args.version_hash,
+            'component_name': component_name,
+            'spec': spec
+        }
+        self.version_collection.insert_one(component_version)
+        component['versions'].append(args.version)
+        self.component_collection.replace_one({'_id': component['_id']}, component)
+
+        return {'componentVersion': marshal(component_version, self.component_version_fields)}, 201
+
+
 def generate_component_api(api: Api, component_type: str,
-                           component_endpoint: str, component_list_endpoint: str,
-                           version_endpoint: str, version_list_endpoint: str):
+                           component_endpoint: str, component_list_endpoint: str):
     component_for_list_fields = {
         'name': fields.String,
         'uri': fields.Url(endpoint=component_endpoint, absolute=True),
@@ -132,92 +184,70 @@ def generate_component_api(api: Api, component_type: str,
 
     api.add_resource(ComponentAPI, '/{}/<string:name>'.format(component_type), endpoint=component_endpoint)
 
-    component_version_for_list_fields = {
-        'version': fields.String,
-        'uri': fields.Url(endpoint=version_endpoint, absolute=True),
-        'hash': fields.String
-    }
-    version_collection = db[version_list_endpoint]
 
-    class ComponentVersionListAPI(Resource, ResponseFields):
-        _version_endpoint = version_endpoint
-
-        def __init__(self):
-            self.parser = reqparse.RequestParser()
-            self.parser.add_argument('version', type=str, required=True,
-                                     help='Version to be published not provided',
-                                     location='json')
-            self.parser.add_argument('version_tag', type=str, required=True,
-                                     help='Version tag not provided',
-                                     location='json')
-            self.parser.add_argument('version_hash', type=str, required=True,
-                                     help='Version hash not provided',
-                                     location='json')
-
-        def get(self, component_name):
-            if component_collection.find_one({'name': component_name}) is None:
-                abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
-
-            return {'versions': [marshal(version, component_version_for_list_fields)
-                                 for version in version_collection.find({'component_name': component_name})]}
-
-        def post(self, component_name):
-            component = component_collection.find_one({'name': component_name})
-            if component is None:
-                abort(make_response(jsonify({'error': 'Component does not exist'}), 404))
-
-            args = self.parser.parse_args()
-            if args.version in component['versions']:
-                abort(make_response(jsonify({'error': 'Component version already exists'}), 409))
-
-            # TODO (dibyo): Fetch spec from git repository for specific version.
-            spec = fetch_remote_spec(component['gitRemoteUrl'], args.version_hash, args.version_tag)
-            component_version = {
-                'version': args.version,
-                'hash': args.version_hash,
-                'component_name': component_name,
-                'spec': spec
-            }
-            version_collection.insert_one(component_version)
-            component['versions'].append(args.version)
-            component_collection.replace_one({'_id': component['_id']}, component)
-
-            return {'componentVersion': marshal(component_version, self.component_version_fields)}, 201
-
-    api.add_resource(ComponentVersionListAPI,
-                     '/{}/<component_name>/versions'.format(component_type),
-                     endpoint=version_list_endpoint)
-
-
-class OperatorVersionAPI(AbstractComponentVersionAPI):
-    _version_endpoint = 'operator_version'
+class OperatorVersionUtils(ComponentVersionUtils):
+    version_endpoint = 'operator_version'
 
     component_collection = db['operators']
     version_collection = db['operator_versions']
+
+
+class OperatorVersionListApi(OperatorVersionUtils, AbstractComponentVersionListAPI):
+    pass
+
+registry_api.add_resource(OperatorVersionListApi,
+                          '/operators/<component_name>/versions',
+                          endpoint='operator_versions')
+
+
+class OperatorVersionAPI(OperatorVersionUtils, AbstractComponentVersionAPI):
+    pass
 
 registry_api.add_resource(OperatorVersionAPI,
                           '/operators/<component_name>/versions/<version>',
                           endpoint='operator_version')
 
 
-class SourceVersionAPI(AbstractComponentVersionAPI):
-    _version_endpoint = 'source_version'
+class SourceVersionUtils(ComponentVersionUtils):
+    version_endpoint = 'source_version'
 
     component_collection = db['sources']
     version_collection = db['source_versions']
 
+
+class SourceVersionListAPI(SourceVersionUtils, AbstractComponentVersionListAPI):
+    pass
+
+registry_api.add_resource(SourceVersionListAPI,
+                          '/sources/<component_name>/versions',
+                          endpoint='source_versions')
+
+
+class SourceVersionAPI(SourceVersionUtils, AbstractComponentVersionAPI):
+    pass
 
 registry_api.add_resource(SourceVersionAPI,
                           '/sources/<component_name>/versions/<version>',
                           endpoint='source_version')
 
 
-class InterfaceVersionAPI(AbstractComponentVersionAPI):
-    _version_endpoint = 'interface_version'
+class InterfaceVersionUtils(ComponentVersionUtils):
+    version_endpoint = 'interface_version'
 
     component_collection = db['interfaces']
     version_collection = db['interface_versions']
 
+
+class InterfaceVersionListApi(InterfaceVersionUtils, AbstractComponentVersionListAPI):
+    pass
+
+registry_api.add_resource(InterfaceVersionListApi,
+                          '/interfaces/<component_name>/versions',
+                          endpoint='interface_versions')
+
+
+class InterfaceVersionAPI(InterfaceVersionUtils, AbstractComponentVersionAPI):
+    pass
 
 registry_api.add_resource(InterfaceVersionAPI,
                           '/interfaces/<component_name>/versions/<version>',
@@ -235,14 +265,11 @@ registry_api.add_resource(InterfaceVersionDependents,
 
 
 generate_component_api(api=registry_api, component_type='operators',
-                       component_endpoint='operator', component_list_endpoint='operators',
-                       version_endpoint='operator_version', version_list_endpoint='operator_versions')
+                       component_endpoint='operator', component_list_endpoint='operators')
 generate_component_api(api=registry_api, component_type='interfaces',
-                       component_endpoint='interface', component_list_endpoint='interfaces',
-                       version_endpoint='interface_version', version_list_endpoint='interface_versions')
+                       component_endpoint='interface', component_list_endpoint='interfaces')
 generate_component_api(api=registry_api, component_type='sources',
-                       component_endpoint='source', component_list_endpoint='sources',
-                       version_endpoint='source_version', version_list_endpoint='source_versions')
+                       component_endpoint='source', component_list_endpoint='sources')
 
 
 @registry.after_request
