@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from collections import namedtuple
 from contextlib import contextmanager
 import os
 from shutil import rmtree
@@ -13,6 +14,10 @@ SPEC_PATH_KEY = 'specPath'
 SPEC_IOP_DECLARATION_KEY = 'iopDeclaration'
 SPEC_DEPENDENCIES_KEY = 'dependencies'
 SPEC_DEFINITION_KEY = 'definition'
+
+
+ComponentInfo = namedtuple('ComponentInfo', ['component_type', 'registry_url',
+                                             'component_name', 'component_version'])
 
 
 @contextmanager

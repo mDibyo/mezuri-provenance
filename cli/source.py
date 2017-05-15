@@ -41,7 +41,7 @@ def generate(args) -> int:
             ('output', OrderedDict((name, type_.serialize())
                                    for name, type_ in io_specs[method]['output']))
         ))) for method in sorted(io_specs.keys()))
-        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.key for d in deps)
+        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.info for d in deps)
         ctx[SPEC_KEY][SPEC_DEFINITION_KEY] = OrderedDict((
             ('file', definition_filename),
             ('class', cls_name)

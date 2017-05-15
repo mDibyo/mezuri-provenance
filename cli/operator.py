@@ -46,7 +46,7 @@ def generate(args) -> int:
                 ))) for io_method in sorted(io_specs.keys())]
             ))
         ))
-        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.key for d in deps)
+        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.info for d in deps)
         ctx[SPEC_KEY][SPEC_DEFINITION_KEY] = OrderedDict((
             ('file', definition_filename),
             ('class', cls_name)
