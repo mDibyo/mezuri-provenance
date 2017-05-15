@@ -76,6 +76,10 @@ class Double(MezuriBaseType):
     data_type = 'DOUBLE'
 
 
+class Datetime(MezuriBaseType):
+    data_type = 'DATETIME'
+
+
 class String(MezuriBaseType):
     data_type = 'STRING'
 
