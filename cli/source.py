@@ -33,15 +33,15 @@ def generate(args) -> int:
         print('Could not evaluate operator definition file {}'.format(args.file))
 
     definition_filename = relpath(args.file, get_project_root_by_specification())
-    cls_name, io_specs, deps = definition_cls._AbstractSource__extract_spec()
+    cls_name, specs, deps = definition_cls._AbstractSource__extract_spec_and_dependencies()
     with component_context('sources') as ctx:
         ctx[SPEC_KEY][SPEC_IOP_DECLARATION_KEY] = OrderedDict((method, OrderedDict((
-            ('uri', io_specs[method]['uri']),
-            ('query', io_specs[method]['query']),
+            ('uri', specs[method]['uri']),
+            ('query', specs[method]['query']),
             ('output', OrderedDict((name, type_.serialize())
-                                   for name, type_ in io_specs[method]['output']))
-        ))) for method in sorted(io_specs.keys()))
-        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.info for d in deps)
+                                   for name, type_ in specs[method]['output']))
+        ))) for method in sorted(specs.keys()))
+        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.info.json_serialized() for d in deps)
         ctx[SPEC_KEY][SPEC_DEFINITION_KEY] = OrderedDict((
             ('file', definition_filename),
             ('class', cls_name)

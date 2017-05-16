@@ -34,11 +34,11 @@ def generate(args) -> int:
         print('Could not evaluate interface definition file {}'.format(filename))
 
     definition_filename = relpath(filename, get_project_root_by_specification())
-    cls_name, io_spec, deps = definition_cls._AbstractInterface__extract_spec()
+    cls_name, io_spec, deps = definition_cls._AbstractInterface__extract_spec_and_dependencies()
     with component_context('interfaces') as ctx:
         ctx[SPEC_KEY][SPEC_IOP_DECLARATION_KEY] = OrderedDict(
             (name, type_.serialize()) for name, type_ in io_spec['input'])
-        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.info for d in deps)
+        ctx[SPEC_KEY][SPEC_DEPENDENCIES_KEY] = sorted(d.info.json_serialized() for d in deps)
         ctx[SPEC_KEY][SPEC_DEFINITION_KEY] = OrderedDict((
             ('file', definition_filename),
             ('class', cls_name)

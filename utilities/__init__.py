@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from contextlib import contextmanager
 import os
 from shutil import rmtree
@@ -16,8 +16,21 @@ SPEC_DEPENDENCIES_KEY = 'dependencies'
 SPEC_DEFINITION_KEY = 'definition'
 
 
-ComponentInfo = namedtuple('ComponentInfo', ['component_type', 'registry_url',
-                                             'component_name', 'component_version'])
+class ComponentInfo(namedtuple('ComponentInfo', ['component_type', 'registry_url',
+                                                 'component_name', 'component_version'])):
+    @staticmethod
+    def _underscore_to_camelcase(value):
+        def camelcase():
+            yield str.lower
+            while True:
+                yield str.capitalize
+
+        c = camelcase()
+        return "".join(next(c)(x) if x else '_' for x in value.split("_"))
+
+    def json_serialized(self):
+        return OrderedDict((self._underscore_to_camelcase(k), v)
+                           for k, v in self._asdict().items())
 
 
 @contextmanager
