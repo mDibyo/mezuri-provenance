@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Dict, Callable
 
 import lib.types as mezuri_types
-from utilities import ComponentInfo
+from utilities import ComponentInfo, SPEC_DEFINITION_KEY, SPEC_IOP_DECLARATION_KEY
 from utilities.registry import RegistryClient
 
 PARAM_METHOD_DECLARATION_ATTR = '__mezuri_param_method__'
@@ -13,6 +13,8 @@ IO_METHOD_DECLARATION_ATTR = '__mezuri_io_method__'
 
 class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
     data_type = 'ABSTRACT_COMPONENT'
+
+    _in_pipeline_step_context = False  # This is not thread-safe.
 
     @classmethod
     @property
@@ -28,8 +30,11 @@ class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
         self._specs = None
 
     def __repr__(self):
-        return '{}({}, {}, {})'.format(self.__class__.__name__, self.registry_url,
-                                       self.name, self.version_str)
+        if self._specs is None:
+            return '{}({}, {}, {})'.format(self.__class__.__name__, self.registry_url,
+                                           self.name, self.version_str)
+
+        return 'Proxy({})'.format(self._specs[SPEC_DEFINITION_KEY]['class'])
 
     @property
     def info(self) -> ComponentInfo:
@@ -74,6 +79,30 @@ class SourceProxyFactory(AbstractComponentProxyFactory):
 
     def __call__(self, *args, **kwargs):
         return self
+
+    def __getattr__(self, method_name: str):
+        method_specs = self.specs[SPEC_IOP_DECLARATION_KEY].get(method_name, None)
+        if method_specs is None:
+            raise AttributeError('{} has no output method {}'.format(
+                self.specs[SPEC_DEFINITION_KEY]['class'], method_name))
+
+        return self.SourceMethodProxy(self, method_name, method_specs)
+
+    class SourceMethodProxy(object):
+        def __init__(self, proxy: 'SourceProxyFactory', method_name: str, method_specs):
+            self._proxy = proxy
+            self._method_name = method_name
+            self._method_specs = method_specs
+
+        def __repr__(self):
+            return '{}.{}'.format(repr(self._proxy), self._method_name)
+
+        def __call__(self, query):
+            if not self._proxy._in_pipeline_step_context:
+                raise RuntimeError('{} can only be called in a pipeline step context'.format(repr(self)))
+
+            self.query = query
+            return self._method_specs['output']
 
 
 class OperatorProxyFactory(AbstractComponentProxyFactory):

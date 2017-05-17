@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
-from collections import namedtuple
-
-from lib.declarations import SourceProxyFactory
-from utilities import SPEC_IOP_DECLARATION_KEY
+from lib.declarations import AbstractComponentProxyFactory
 
 
 class PipelineError(BaseException):
@@ -45,15 +42,16 @@ class PipelineSourceStep(object):
             self._step = step
             self.output = None
 
-            self._source = None
-
         def __enter__(self):
             if self._step._is_set:
                 raise PipelineError('Pipeline Step already set up.')
 
+            AbstractComponentProxyFactory._in_pipeline_step_context = True
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
+            AbstractComponentProxyFactory._in_pipeline_step_context = False
+
             if exc_type is not None:
                 return False
 
@@ -62,49 +60,4 @@ class PipelineSourceStep(object):
             self._step._is_set = True
 
         def __repr__(self):
-            return '{}.context()'.format(str(self._step))
-
-        @property
-        def source(self):
-            if self._source is None:
-                raise AttributeError('Pipeline source is not set.')
-
-            return self._source
-
-        @source.setter
-        def source(self, new_source: SourceProxyFactory):
-            if new_source.data_type != 'SOURCE':
-                raise PipelineError('Pipeline Source {} is not valid.'.format(new_source))
-
-            self._source = PipelineSourceStep.PipelineSource(new_source)
-
-    class PipelineSource(object):
-        MethodAccess = namedtuple('MethodAccess', ['method_name', 'method_proxy'])
-
-        def __init__(self, source: SourceProxyFactory):
-            self.source = source
-
-        def __repr__(self):
-            return 'PipelineSource({})'.format(str(self.source))
-
-        def __getattr__(self, method_name):
-            method_specs = self.source.specs[SPEC_IOP_DECLARATION_KEY].get(method_name, None)
-            if method_specs is None:
-                raise AttributeError('Pipeline source does not have output method {}.'.format(method_name))
-
-            return self.PipelineSourceMethod(self, method_name, method_specs)
-
-        class PipelineSourceMethod(object):
-            def __init__(self, pipeline_source, method_name, method_specs):
-                self.pipeline_source = pipeline_source
-                self.method_name = method_name
-                self.method_specs = method_specs
-
-                self.query = None
-
-            def __repr__(self):
-                return '{}.{}()'.format(str(self.pipeline_source), self.method_name)
-
-            def __call__(self, query):
-                self.query = query
-                return self.method_specs['output']
+            return '{}.context()'.format(repr(self._step))
