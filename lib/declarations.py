@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Callable
+from typing import Dict, Callable, Tuple
 
 from lib import PipelineError
 import lib.types as mezuri_types
@@ -29,6 +29,7 @@ class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
         self.version_str = version
 
         self._specs = None
+        self._version_hash = None
 
     def __repr__(self):
         if self._specs is None:
@@ -59,15 +60,22 @@ class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
     def dependencies(self):
         return {self}
 
-    def _fetch_spec(self) -> Dict:
+    def _fetch_spec_and_version_hash(self):
         registry = RegistryClient(self.registry_url, self.component_type, self.name)
-        return registry.get_component_version(self.version_str)['specs']
+        component_version = registry.get_component_version(self.version_str)
+        self._specs, self._version_hash = component_version['specs'], component_version['hash']
 
     @property
     def specs(self) -> Dict:
         if self._specs is None:
-            self._specs = self._fetch_spec()
+            self._fetch_spec_and_version_hash()
         return self._specs
+
+    @property
+    def version_hash(self):
+        if self._version_hash is None:
+            self._fetch_spec_and_version_hash()
+        return self._version_hash
 
     @abstractmethod
     def __call__(self, *args, **kwargs):

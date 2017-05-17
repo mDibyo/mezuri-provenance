@@ -50,3 +50,14 @@ def working_dir(directory: str):
         yield
     finally:
         os.chdir(current_directory)
+
+
+def hashes_xor(*hashes: str):
+    if len(hashes) == 1:
+        return hashes[0]
+
+    result = int(hashes[0], 16)
+    for hash_ in hashes[1:]:
+        result ^= int(hash_, 16)
+
+    return hex(result)[2:]
