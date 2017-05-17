@@ -4,24 +4,6 @@ from lib import PipelineError
 from lib.declarations import AbstractComponentProxyFactory
 
 
-class PipelineStepOutputs(object):
-    def __init__(self, step):
-        self._step = step
-        self._outputs = {}
-
-    def __repr__(self):
-        return str(self._outputs)
-
-    def __len__(self):
-        return len(self._outputs)
-
-    def __setattr__(self, key: str, value):
-        if key not in ['_outputs', '_step']:
-            self._outputs[key] = value
-
-        super().__setattr__(key, value)
-
-
 class PipelineSourceStep(object):
     def __init__(self):
         self._is_set = False
@@ -122,3 +104,8 @@ class PipelineOperationStep(object):
                     step_name, str(self._proxy)))
 
             return prev_step.output
+
+
+class Pipeline(object):
+    def __init__(self, last_step: PipelineSourceStep or PipelineOperationStep):
+        self.last_step = last_step
