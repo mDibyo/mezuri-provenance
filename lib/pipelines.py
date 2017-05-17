@@ -31,16 +31,19 @@ class PipelineStepOutputs(object):
 class PipelineSourceStep(object):
     def __init__(self):
         self._is_set = False
-        self.outputs = None
         self._context = self.PipelineSourceContext(self)
 
     def context(self):
         return self._context
 
+    @property
+    def output(self):
+        return self._context.output
+
     class PipelineSourceContext(object):
         def __init__(self, step):
             self._step = step
-            self.outputs = PipelineStepOutputs(self._step)
+            self.output = None
 
             self._source = None
 
@@ -54,9 +57,8 @@ class PipelineSourceStep(object):
             if exc_type is not None:
                 return False
 
-            if not len(self.outputs):
+            if self.output is None:
                 raise PipelineError('Pipeline Step does not have any outputs.')
-            self._step.outputs = self.outputs
             self._step._is_set = True
 
         def __repr__(self):
@@ -82,8 +84,6 @@ class PipelineSourceStep(object):
         def __init__(self, source: SourceProxyFactory):
             self.source = source
 
-            self.methods_accessed = []
-
         def __repr__(self):
             return 'PipelineSource({})'.format(str(self.source))
 
@@ -92,9 +92,7 @@ class PipelineSourceStep(object):
             if method_specs is None:
                 raise AttributeError('Pipeline source does not have output method {}.'.format(method_name))
 
-            method_proxy = self.PipelineSourceMethod(self, method_name, method_specs)
-            self.methods_accessed.append(self.MethodAccess(method_name, method_proxy))
-            return method_proxy
+            return self.PipelineSourceMethod(self, method_name, method_specs)
 
         class PipelineSourceMethod(object):
             def __init__(self, pipeline_source, method_name, method_specs):
