@@ -3,6 +3,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Callable
 
+from lib import PipelineError
 import lib.types as mezuri_types
 from utilities import ComponentInfo, SPEC_DEFINITION_KEY, SPEC_IOP_DECLARATION_KEY
 from utilities.registry import RegistryClient
@@ -99,7 +100,7 @@ class SourceProxyFactory(AbstractComponentProxyFactory):
 
         def __call__(self, query):
             if not self._proxy._in_pipeline_step_context:
-                raise RuntimeError('{} can only be called in a pipeline step context'.format(repr(self)))
+                raise PipelineError('{} can only be called in a pipeline step context'.format(str(self)))
 
             self.query = query
             return self._method_specs['output']
@@ -110,7 +111,41 @@ class OperatorProxyFactory(AbstractComponentProxyFactory):
     component_type = 'operators'
 
     def __call__(self, *args, **kwargs):
+        # TODO(dibyo): Add implementation for `Operator.__init__`.
         return self
+
+    def __getattr__(self, method_name: str):
+        method_specs = self.specs[SPEC_IOP_DECLARATION_KEY]['methods'].get(method_name, None)
+        if method_specs is None:
+            raise AttributeError('{} has no output method {}'.format(
+                self.specs[SPEC_DEFINITION_KEY]['class'], method_name))
+
+        return self.SourceMethodProxy(self, method_name, method_specs)
+
+    class SourceMethodProxy(object):
+        def __init__(self, proxy: 'SourceProxyFactory', method_name: str, method_specs):
+            self._proxy = proxy
+            self._method_name = method_name
+            self._method_specs = method_specs
+
+        def __repr__(self):
+            return '{}.{}'.format(repr(self._proxy), self._method_name)
+
+        def __call__(self, **kwargs):
+            if not self._proxy._in_pipeline_step_context:
+                raise PipelineError('{} can only be called in a pipeline step context'.format(str(self)))
+
+            input_specs = self._method_specs['input']
+            if set(kwargs.keys()) != set(input_specs):
+                raise PipelineError("arguments to method '{}' do not match method input "
+                                    "specifications".format(self._method_name))
+
+            for name, type_ in kwargs.items():
+                if type_ != input_specs[name]:
+                    raise PipelineError("type of argument '{}' to method {} do not match "
+                                        "method input specifications".format(name, self._method_name))
+
+            return self._method_specs['output']
 
 
 class InterfaceProxyFactory(AbstractComponentProxyFactory):
