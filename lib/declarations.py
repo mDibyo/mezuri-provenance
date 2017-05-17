@@ -110,8 +110,16 @@ class OperatorProxyFactory(AbstractComponentProxyFactory):
     data_type = 'OPERATOR'
     component_type = 'operators'
 
-    def __call__(self, *args, **kwargs):
-        # TODO(dibyo): Add implementation for `Operator.__init__`.
+    def __call__(self, **kwargs):
+        param_specs = self.specs[SPEC_IOP_DECLARATION_KEY]['parameters']
+        if set(kwargs.keys()) != set(param_specs):
+            raise PipelineError('arguments to __init__ do not match parameter specifications')
+
+        for name, type_ in kwargs.items():
+            if type_ != param_specs[name]:
+                raise PipelineError("type of argument '{}' does not match parameter "
+                                    "specifications".format(name))
+
         return self
 
     def __getattr__(self, method_name: str):
