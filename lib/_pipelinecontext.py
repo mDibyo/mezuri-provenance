@@ -2,9 +2,15 @@
 
 from collections import namedtuple
 
-from utilities import SingletonClass
+from utilities import SingletonClass, get_hashable_dict
 
-MethodCall = namedtuple('MethodCall', ['class_', 'method', 'inputs', 'output_specs'])
+
+class MethodCall(namedtuple('MethodCall', ['class_', 'method', 'inputs', 'output_specs'])):
+    def __hash__(self):
+        return hash((self.class_, self.method, get_hashable_dict(self.inputs),
+                     get_hashable_dict(self.output_specs)))
+
+
 StepOutputAccess = namedtuple('StepOutputAccess', ['step'])
 
 

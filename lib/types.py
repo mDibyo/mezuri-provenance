@@ -4,6 +4,8 @@ from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from typing import Dict as DictType
 
+from utilities import get_hashable_dict
+
 
 Serialized = namedtuple('Serialized', ['data_type', 'contents'])
 deserializers = {}
@@ -50,6 +52,10 @@ class AbstractMezuriSerializable(metaclass=MezuriSerializableMeta):
     def __eq__(self, other: 'AbstractMezuriSerializable'):
         return NotImplemented
 
+    @abstractmethod
+    def __hash__(self):
+        return NotImplemented
+
 
 class MezuriBaseType(AbstractMezuriSerializable):
     data_type = 'ABSTRACT_BASE'
@@ -70,6 +76,9 @@ class MezuriBaseType(AbstractMezuriSerializable):
 
     def __eq__(self, other):
         return self.data_type == other.data_type
+
+    def __hash__(self):
+        return hash(self.data_type)
 
 
 class Int(MezuriBaseType):
@@ -116,6 +125,9 @@ class List(AbstractMezuriSerializable):
         return (self.data_type == other.data_type and
                 self.element_type == other.element_type)
 
+    def __hash__(self):
+        return hash((self.element_type,))
+
 
 class Dict(AbstractMezuriSerializable):
     data_type = 'DICT'
@@ -145,3 +157,6 @@ class Dict(AbstractMezuriSerializable):
     def __eq__(self, other):
         return (self.data_type == other.data_type and
                 self.definition == other.definition)
+
+    def __hash__(self):
+        return hash(get_hashable_dict(self.definition))

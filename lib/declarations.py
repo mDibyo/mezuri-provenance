@@ -82,7 +82,7 @@ class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
             raise PipelineError('{}() can only be called in a pipeline step context'.format(str(self)))
 
         PipelineStepContext().add_method_call_in_context(MethodCall(
-            self, '__init__', kwargs, None))
+            self, '__init__', kwargs, {}))
 
         return self
 
@@ -128,6 +128,8 @@ class SourceProxyFactory(AbstractComponentProxyFactory):
             raise AttributeError('{} has no output method {}'.format(
                 self.specs[SPEC_DEFINITION_KEY]['class'], method_name))
 
+        method_specs['output'] = {k: mezuri_types.get_deserialized(v)
+                                  for k, v in method_specs['output'].items()}
         return self.SourceMethodProxy(self, method_name, method_specs)
 
     class SourceMethodProxy(AbstractComponentProxyFactory.ComponentMethodProxy):
@@ -157,6 +159,10 @@ class OperatorProxyFactory(AbstractComponentProxyFactory):
             raise AttributeError('{} has no output method {}'.format(
                 self.specs[SPEC_DEFINITION_KEY]['class'], method_name))
 
+        method_specs['input'] = {k: mezuri_types.get_deserialized(v)
+                                 for k, v in method_specs['input'].items()}
+        method_specs['output'] = {k: mezuri_types.get_deserialized(v)
+                                  for k, v in method_specs['output'].items()}
         return super().ComponentMethodProxy(self, method_name, method_specs)
 
 
@@ -187,7 +193,7 @@ class AbstractIOP(metaclass=ABCMeta):
         setattr(method, self._attr_key, True)
 
         io = getattr(method, self._attr_io_key, tuple())
-        io = ((self.name, self.type_), ) + io
+        io = ((self.name, self.type_),) + io
         setattr(method, self._attr_io_key, io)
         return method
 

@@ -2,6 +2,7 @@
 
 from collections import namedtuple, OrderedDict
 from contextlib import contextmanager
+from hashlib import sha1
 import os
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -62,12 +63,22 @@ def working_dir(directory: str):
         os.chdir(current_directory)
 
 
-def hashes_xor(*hashes: str):
-    if len(hashes) == 1:
-        return hashes[0]
+def digests_xor(*digests: str) -> str or None:
+    if not digests:
+        return None
 
-    result = int(hashes[0], 16)
-    for hash_ in hashes[1:]:
-        result ^= int(hash_, 16)
+    result = int(digests[0], 16)
+    for digest in digests[1:]:
+        result ^= int(digest, 16)
 
     return hex(result)[2:]
+
+
+def hash_to_sha1_digest(hash_: int) -> str:
+    return sha1(hash_.to_bytes((hash_.bit_length() + 7) // 8,
+                               byteorder='little',
+                               signed=True)).hexdigest()
+
+
+def get_hashable_dict(d: dict):
+    return tuple(sorted(d.items()))

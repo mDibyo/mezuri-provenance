@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 from lib import PipelineError
 from ._pipelinecontext import MethodCall, StepOutputAccess, PipelineStepContext
-from utilities import hashes_xor
+from utilities import digests_xor, hash_to_sha1_digest
 
 
 class PipelineStep(object):
@@ -23,6 +23,17 @@ class PipelineStep(object):
 
     def __repr__(self):
         return '{}()'.format(self.__class__.__name__)
+
+    def __eq__(self, other: 'PipelineStep'):
+        return (self._method_calls == other._method_calls and
+                self._prev_steps == other._prev_steps)
+
+    def version_hash(self):
+        component_hash = hash(self._component)
+        method_calls_hash = hash(tuple(self._method_calls))
+        return digests_xor(hash_to_sha1_digest(component_hash),
+                           hash_to_sha1_digest(method_calls_hash),
+                           *sorted(map(lambda step: step.version_hash(), self._prev_steps)))
 
     @property
     def output(self):
@@ -74,6 +85,8 @@ class Pipeline(object):
     def __init__(self, last_step: PipelineStep):
         self.last_step = last_step
 
-    @property
+    def __eq__(self, other: 'Pipeline'):
+        return other.last_step == self.last_step
+
     def version_hash(self):
-        return self.last_step.version_hash
+        return self.last_step.version_hash()
