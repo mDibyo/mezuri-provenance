@@ -16,6 +16,16 @@ SPEC_DEPENDENCIES_KEY = 'dependencies'
 SPEC_DEFINITION_KEY = 'definition'
 
 
+class SingletonClass(object):
+    __instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls, *args, **kwargs)
+
+        return cls.__instance
+
+
 class ComponentInfo(namedtuple('ComponentInfo', ['component_type', 'registry_url',
                                                  'component_name', 'component_version'])):
     @staticmethod
