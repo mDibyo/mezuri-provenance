@@ -1,60 +1,59 @@
 #!/usr/bin/env python3
 
+from contextlib import contextmanager
+
 from lib import PipelineError
-from lib.declarations import AbstractComponentProxyFactory, SourceProxyFactory, OperatorProxyFactory
+from lib.declarations import PipelineStepContext, AbstractComponentProxyFactory, SourceProxyFactory, OperatorProxyFactory
 from utilities import hashes_xor
 
 
-class PipelineSourceStep(object):
+class PipelineStep(object):
     def __init__(self):
         self._is_set = False
-        self._context = self.PipelineSourceContext(self)
+
+        self._component = None
+        self._component_initialized = False
+        self._method_calls = []
+        self._output = None
 
     def __repr__(self):
         return '{}()'.format(self.__class__.__name__)
 
     @property
-    def version_hash(self):
-        return self.source.version_hash
-
-    def context(self):
-        return self._context
-
-    @property
-    def source(self) -> SourceProxyFactory:
-        return self._context.source
-
-    @property
     def output(self):
-        return self._context.output
+        return self._output
 
-    class PipelineSourceContext(object):
-        def __init__(self, step: 'PipelineSourceStep'):
-            self._step = step
-            self.source = None
-            self.output = None
+    def _validate_and_record_method_call(self, method_call):
+        component_class = method_call.class_
+        if self._component is not None:
+            if component_class != self._component:
+                raise PipelineError('component {} used when component {} is already being used '
+                                    'in step'.format(component_class, self._component))
+        else:
+            self._component = component_class
 
-        def __enter__(self):
-            if self._step._is_set:
-                raise PipelineError('Pipeline Step already set up.')
+        if method_call.method == '__init__':
+            if self._component_initialized:
+                raise PipelineError('component being reinitialized in step')
+            self._component_initialized = True
+        else:
+            if self._output is not None:
+                raise PipelineError('a component method has already been called')
+            self._output = method_call.output_specs
 
-            AbstractComponentProxyFactory._in_pipeline_step_context = True
-            return self
+        self._method_calls.append(method_call)
 
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            AbstractComponentProxyFactory._in_pipeline_step_context = False
+    @contextmanager
+    def context(self):
+        if self._is_set:
+            raise PipelineError('pipeline step already set up')
 
-            if exc_type is not None:
-                return False
+        with PipelineStepContext().context(self._validate_and_record_method_call):
+            yield self
 
-            if self.source is None:
-                raise PipelineError('Pipeline Source Step does not have source')
-            if self.output is None:
-                raise PipelineError('Pipeline Step does not have output')
-            self._step._is_set = True
-
-        def __repr__(self):
-            return '{}.context()'.format(repr(self._step))
+        if self._output is None:
+            raise PipelineError('no component methods have been called for producing output')
+        self._is_set = True
 
 
 class PipelineOperationStep(object):

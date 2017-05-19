@@ -3,7 +3,8 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Callable, Tuple
 
-from lib import PipelineError
+from . import PipelineError
+from ._pipelinecontext import MethodCall, PipelineStepContext
 import lib.types as mezuri_types
 from utilities import ComponentInfo, SPEC_DEFINITION_KEY, SPEC_IOP_DECLARATION_KEY
 from utilities.registry import RegistryClient
@@ -14,8 +15,6 @@ IO_METHOD_DECLARATION_ATTR = '__mezuri_io_method__'
 
 class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
     data_type = 'ABSTRACT_COMPONENT'
-
-    _in_pipeline_step_context = False  # This is not thread-safe.
 
     @classmethod
     @property
@@ -78,16 +77,40 @@ class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
         return self._version_hash
 
     @abstractmethod
-    def __call__(self, *args, **kwargs):
-        pass
+    def __call__(self, **kwargs):
+        if not PipelineStepContext().in_context:
+            raise PipelineError('{}() can only be called in a pipeline step context'.format(str(self)))
+
+        PipelineStepContext().add_method_call_in_context(MethodCall(
+            self, '__init__', kwargs, None))
+
+        return self
+
+    class ComponentMethodProxy(object):
+        def __init__(self, proxy: 'AbstractComponentProxyFactory', method_name: str, method_specs):
+            self._proxy = proxy
+            self._method_name = method_name
+            self._method_specs = method_specs
+
+        def __repr__(self):
+            return '{}.{}'.format(repr(self._proxy), self._method_name)
+
+        def __call__(self, **kwargs):
+            if not PipelineStepContext().in_context:
+                raise PipelineError('{} can only be called in a pipeline step context'.format(str(self)))
+
+            PipelineStepContext().add_method_call_in_context(MethodCall(
+                self._proxy, self._method_name, kwargs, self._method_specs['output']
+            ))
+            return self._method_specs['output']
 
 
 class SourceProxyFactory(AbstractComponentProxyFactory):
     data_type = 'SOURCE'
     component_type = 'sources'
 
-    def __call__(self, *args, **kwargs):
-        return self
+    def __call__(self, **kwargs):
+        return super().__call__(**kwargs)
 
     def __getattr__(self, method_name: str):
         method_specs = self.specs[SPEC_IOP_DECLARATION_KEY].get(method_name, None)
@@ -97,21 +120,9 @@ class SourceProxyFactory(AbstractComponentProxyFactory):
 
         return self.SourceMethodProxy(self, method_name, method_specs)
 
-    class SourceMethodProxy(object):
-        def __init__(self, proxy: 'SourceProxyFactory', method_name: str, method_specs):
-            self._proxy = proxy
-            self._method_name = method_name
-            self._method_specs = method_specs
-
-        def __repr__(self):
-            return '{}.{}'.format(repr(self._proxy), self._method_name)
-
+    class SourceMethodProxy(AbstractComponentProxyFactory.ComponentMethodProxy):
         def __call__(self, query):
-            if not self._proxy._in_pipeline_step_context:
-                raise PipelineError('{} can only be called in a pipeline step context'.format(str(self)))
-
-            self.query = query
-            return self._method_specs['output']
+            return super().__call__(query=query)
 
 
 class OperatorProxyFactory(AbstractComponentProxyFactory):
