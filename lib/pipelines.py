@@ -3,27 +3,34 @@
 from contextlib import contextmanager
 
 from lib import PipelineError
-from lib.declarations import PipelineStepContext, AbstractComponentProxyFactory, SourceProxyFactory, OperatorProxyFactory
+from ._pipelinecontext import MethodCall, StepOutputAccess, PipelineStepContext
+from lib.declarations import AbstractComponentProxyFactory, SourceProxyFactory, OperatorProxyFactory
 from utilities import hashes_xor
 
 
 class PipelineStep(object):
     def __init__(self):
         self._is_set = False
+        self._reset()
+
+    def _reset(self):
+        self._is_set = False
 
         self._component = None
         self._component_initialized = False
         self._method_calls = []
         self._output = None
+        self._prev_steps = set()
 
     def __repr__(self):
         return '{}()'.format(self.__class__.__name__)
 
     @property
     def output(self):
+        PipelineStepContext().add_step_output_access_in_context(StepOutputAccess(self))
         return self._output
 
-    def _validate_and_record_method_call(self, method_call):
+    def _validate_and_record_method_call(self, method_call: MethodCall):
         component_class = method_call.class_
         if self._component is not None:
             if component_class != self._component:
@@ -43,13 +50,21 @@ class PipelineStep(object):
 
         self._method_calls.append(method_call)
 
+    def _record_step_output_access(self, step_output_access: StepOutputAccess):
+        self._prev_steps.add(step_output_access.step)
+
     @contextmanager
     def context(self):
         if self._is_set:
             raise PipelineError('pipeline step already set up')
 
-        with PipelineStepContext().context(self._validate_and_record_method_call):
-            yield self
+        try:
+            with PipelineStepContext().context(self._validate_and_record_method_call,
+                                               self._record_step_output_access):
+                yield self
+        except:
+            self._reset()
+            raise
 
         if self._output is None:
             raise PipelineError('no component methods have been called for producing output')

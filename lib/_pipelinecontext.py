@@ -5,28 +5,35 @@ from collections import namedtuple
 from utilities import SingletonClass
 
 MethodCall = namedtuple('MethodCall', ['class_', 'method', 'inputs', 'output_specs'])
+StepOutputAccess = namedtuple('StepOutputAccess', ['step'])
 
 
 class PipelineStepContext(SingletonClass):
-    _in_context = False  # This is not thread-safe.
-    _callback = None
+    _in_ctx = False  # This is not thread-safe.
+    _mc_callback = None
+    _soa_callback = None
 
     @property
     def in_context(self):
-        return self._in_context
+        return self._in_ctx
 
-    def context(self, callback=None):
-        self._callback = callback
+    def context(self, method_call_callback=None, step_output_access_callback=None):
+        self._mc_callback = method_call_callback
+        self._soa_callback = step_output_access_callback
         return self
 
     def __enter__(self):
-        self._in_context = True
+        self._in_ctx = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._in_context = False
-        self._callback = None
+        self._in_ctx = False
+        self._mc_callback = None
 
     def add_method_call_in_context(self, method_call: MethodCall):
-        if self._in_context and self._callback is not None:
-            self._callback(method_call)
+        if self._in_ctx and self._mc_callback is not None:
+            self._mc_callback(method_call)
+
+    def add_step_output_access_in_context(self, step_output_access: StepOutputAccess):
+        if self._in_ctx and self._soa_callback is not None:
+            self._soa_callback(step_output_access)
