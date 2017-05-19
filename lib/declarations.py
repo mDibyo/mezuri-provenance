@@ -95,12 +95,22 @@ class AbstractComponentProxyFactory(mezuri_types.AbstractMezuriSerializable):
         def __repr__(self):
             return '{}.{}'.format(repr(self._proxy), self._method_name)
 
-        def __call__(self, **kwargs):
+        def __call__(self, **input_kwargs):
             if not PipelineStepContext().in_context:
                 raise PipelineError('{} can only be called in a pipeline step context'.format(str(self)))
 
+            input_specs = self._method_specs.get('input', {})
+            if set(input_kwargs) != set(input_specs):
+                raise PipelineError("arguments to method '{}' do not match method input "
+                                    "specifications".format(self._method_name))
+
+            for name, type_ in input_kwargs.items():
+                if type_ != input_specs[name]:
+                    raise PipelineError("type of argument '{}' to method {} does not match "
+                                        "method input specifications".format(name, self._method_name))
+
             PipelineStepContext().add_method_call_in_context(MethodCall(
-                self._proxy, self._method_name, kwargs, self._method_specs['output']
+                self._proxy, self._method_name, input_kwargs, self._method_specs['output']
             ))
             return self._method_specs['output']
 
@@ -121,8 +131,8 @@ class SourceProxyFactory(AbstractComponentProxyFactory):
         return self.SourceMethodProxy(self, method_name, method_specs)
 
     class SourceMethodProxy(AbstractComponentProxyFactory.ComponentMethodProxy):
-        def __call__(self, query):
-            return super().__call__(query=query)
+        def __call__(self):
+            return super().__call__()
 
 
 class OperatorProxyFactory(AbstractComponentProxyFactory):
@@ -139,7 +149,7 @@ class OperatorProxyFactory(AbstractComponentProxyFactory):
                 raise PipelineError("type of argument '{}' does not match parameter "
                                     "specifications".format(name))
 
-        return self
+        return super().__call__(**kwargs)
 
     def __getattr__(self, method_name: str):
         method_specs = self.specs[SPEC_IOP_DECLARATION_KEY]['methods'].get(method_name, None)
@@ -147,32 +157,7 @@ class OperatorProxyFactory(AbstractComponentProxyFactory):
             raise AttributeError('{} has no output method {}'.format(
                 self.specs[SPEC_DEFINITION_KEY]['class'], method_name))
 
-        return self.SourceMethodProxy(self, method_name, method_specs)
-
-    class SourceMethodProxy(object):
-        def __init__(self, proxy: 'SourceProxyFactory', method_name: str, method_specs):
-            self._proxy = proxy
-            self._method_name = method_name
-            self._method_specs = method_specs
-
-        def __repr__(self):
-            return '{}.{}'.format(repr(self._proxy), self._method_name)
-
-        def __call__(self, **kwargs):
-            if not self._proxy._in_pipeline_step_context:
-                raise PipelineError('{} can only be called in a pipeline step context'.format(str(self)))
-
-            input_specs = self._method_specs['input']
-            if set(kwargs.keys()) != set(input_specs):
-                raise PipelineError("arguments to method '{}' do not match method input "
-                                    "specifications".format(self._method_name))
-
-            for name, type_ in kwargs.items():
-                if type_ != input_specs[name]:
-                    raise PipelineError("type of argument '{}' to method {} do not match "
-                                        "method input specifications".format(name, self._method_name))
-
-            return self._method_specs['output']
+        return super().ComponentMethodProxy(self, method_name, method_specs)
 
 
 class InterfaceProxyFactory(AbstractComponentProxyFactory):
