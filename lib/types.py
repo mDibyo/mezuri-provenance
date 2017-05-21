@@ -129,8 +129,12 @@ class List(AbstractMezuriSerializable):
         return hash((self.element_type,))
 
 
-class Dict(AbstractMezuriSerializable):
-    data_type = 'DICT'
+class Stream(List):
+    data_type = 'STREAM'
+
+
+class Struct(AbstractMezuriSerializable):
+    data_type = 'STRUCT'
 
     def __init__(self, definition: DictType[str, AbstractMezuriSerializable]):
         self.definition = definition
