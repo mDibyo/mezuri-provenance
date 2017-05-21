@@ -65,8 +65,8 @@ class VersionTag:
         return cls(component_type, component_name, Version(version_str), int(update_num))
 
     def with_incremented_update_num(self) -> 'VersionTag':
-        return self.__class__(self.component_type, self.component_name,
-                              self.version, self.update_num + 1)
+        return type(self)(self.component_type, self.component_name,
+                          self.version, self.update_num + 1)
 
     def __repr__(self):
         return '/'.join(['mezuri', self.component_type, self.component_name,

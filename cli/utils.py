@@ -130,7 +130,9 @@ def save_component_context(context):
 def component_context(component_type: str, spec_defaults=None):
     ctx = calculate_component_context(component_type, spec_defaults)
     try:
-        yield ctx
+        ctx_copy = OrderedDict(ctx)
+        yield ctx_copy
+        ctx = ctx_copy
     finally:
         save_component_context(ctx)
 

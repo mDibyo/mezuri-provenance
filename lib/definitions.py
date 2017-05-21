@@ -125,8 +125,8 @@ class AbstractSource(AbstractComponent, metaclass=ABCMeta):
                         'query': reader.query
                     }
 
-                    for _, _type in output:
-                        dependencies |= _type
+                    for _, type_ in output:
+                        dependencies |= type_.dependencies
 
         return cls.__name__, specs, dependencies
 

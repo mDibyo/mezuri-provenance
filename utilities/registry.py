@@ -67,7 +67,7 @@ class RegistryClient:
     def get_component_version(self, version: str):
         response = requests.get(self.version_url(version), timeout=None)
         if response.status_code == requests.codes.ok:
-            return response.json()['version']
+            return response.json()['componentVersion']
         return None
 
     def post_component_version(self, version: str, version_tag: str, version_hash: str):

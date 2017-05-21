@@ -31,6 +31,7 @@ def generate(args) -> int:
     definition_cls = extract_component_definition(args.file, DEFINITION_CLASS_REF)
     if definition_cls is None:
         print('Could not evaluate operator definition file {}'.format(args.file))
+        return 1
 
     definition_filename = relpath(args.file, get_project_root_by_specification())
     cls_name, io_specs, param_spec, deps = definition_cls._AbstractOperator__extract_spec_and_dependencies()

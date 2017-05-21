@@ -222,9 +222,6 @@ def extract_component_definition(definition_file: str, definition_class: str):
         contents = f.read()
 
     globals_ = {}
-    try:
-        exec(contents, globals_)
-    except Exception:
-        return None
+    exec(contents, globals_)
 
     return globals_.get(definition_class, None)
