@@ -4,13 +4,13 @@ from argparse import ArgumentParser
 from collections import OrderedDict
 from os.path import relpath
 
-from lib.declarations import extract_component_definition
-from utilities import (
+from common import (
     SPEC_KEY, SPEC_IOP_DECLARATION_KEY,
     SPEC_DEPENDENCIES_KEY, SPEC_DEFINITION_KEY, SPEC_FILENAME
 )
-from utilities.constructs import Version
-from utilities.git import Git
+from common.constructs import Version
+from common.git import Git
+from lib.declarations import extract_component_definition
 from .utils import (
     get_project_root_by_specification,
     component_context, component_init,

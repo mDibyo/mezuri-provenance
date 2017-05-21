@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from typing import Dict as DictType
 
-from utilities import get_hashable_dict
+from common import get_hashable_dict
 
 
 Serialized = namedtuple('Serialized', ['data_type', 'contents'])

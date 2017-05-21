@@ -7,8 +7,8 @@ from flask_restful import Api, Resource, reqparse, fields, marshal
 import json
 
 from registry.db import db
-from utilities import temporary_dir, working_dir, SPEC_FILENAME, ComponentInfo
-from utilities.git import Git
+from common import temporary_dir, working_dir, SPEC_FILENAME, ComponentInfo
+from common.git import Git
 
 REGISTRY_URL_PATH = 'http://127.0.0.1:5000'
 

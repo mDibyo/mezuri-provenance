@@ -2,7 +2,7 @@
 
 import requests
 
-from utilities.constructs import VersionTag
+from common.constructs import VersionTag
 
 
 class RegistryError(BaseException):

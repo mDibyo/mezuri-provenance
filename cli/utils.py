@@ -6,10 +6,10 @@ import json
 import os
 from typing import Dict
 
-from utilities import SPEC_FILENAME, SPEC_KEY, SPEC_PATH_KEY, SPEC_IOP_DECLARATION_KEY
-from utilities.constructs import Version, DEFAULT_VERSION, VersionTag
-from utilities.git import Git
-from utilities.registry import RegistryClient, RegistryError
+from common import SPEC_FILENAME, SPEC_KEY, SPEC_PATH_KEY, SPEC_IOP_DECLARATION_KEY
+from common.constructs import Version, DEFAULT_VERSION, VersionTag
+from common.git import Git
+from common.registry import RegistryClient, RegistryError
 
 """
 Utilities for CLI.

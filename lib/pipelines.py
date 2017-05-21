@@ -2,9 +2,9 @@
 
 from contextlib import contextmanager
 
-from lib import PipelineError
 from ._pipelinecontext import MethodCall, StepOutputAccess, PipelineStepContext
-from utilities import digests_xor, hash_to_sha1_digest
+from common import digests_xor, hash_to_sha1_digest
+from lib import PipelineError
 
 
 class PipelineStep(object):

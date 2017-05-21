@@ -5,9 +5,9 @@ from typing import Dict, Callable, Tuple
 
 from . import PipelineError
 from ._pipelinecontext import MethodCall, PipelineStepContext
+from common import ComponentInfo, SPEC_DEFINITION_KEY, SPEC_IOP_DECLARATION_KEY
+from common.registry import RegistryClient
 import lib.types as mezuri_types
-from utilities import ComponentInfo, SPEC_DEFINITION_KEY, SPEC_IOP_DECLARATION_KEY
-from utilities.registry import RegistryClient
 
 PARAM_METHOD_DECLARATION_ATTR = '__mezuri_param_method__'
 IO_METHOD_DECLARATION_ATTR = '__mezuri_io_method__'

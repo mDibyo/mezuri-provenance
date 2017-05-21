@@ -2,7 +2,7 @@
 
 from collections import namedtuple
 
-from utilities import SingletonClass, get_hashable_dict
+from common import SingletonClass, get_hashable_dict
 
 
 class MethodCall(namedtuple('MethodCall', ['class_', 'method', 'inputs', 'output_specs'])):
