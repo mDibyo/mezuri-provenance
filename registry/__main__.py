@@ -3,4 +3,4 @@
 from registry.app import registry
 
 
-registry.run(debug=True)
+registry.run(debug=True, host='0.0.0.0', port=8421)
