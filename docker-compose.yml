@@ -1,0 +1,20 @@
+version: '2'
+
+services:
+  registry:
+    container_name: mezuri_registry
+    build: .
+    command: python -m registry
+    ports:
+      - 8421:8421
+    volumes:
+      - .:/mezuri
+    depends_on:
+      - mongodb
+  mongodb:
+    container_name: mongodb
+    image: mongo:3.4
+    environment:
+      - MONGO_DATA_DIR=/data
+    volumes:
+      - ./data:/data

@@ -12,3 +12,7 @@ examples/sources
 !examples/sources/.keep
 examples/interfaces
 !examples/interfaces/.keep
+
+# Database files
+data
+!data/.keep
